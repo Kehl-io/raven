@@ -39,7 +39,7 @@ jobs:
             os: ubuntu-latest
             label: Linux x64
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
