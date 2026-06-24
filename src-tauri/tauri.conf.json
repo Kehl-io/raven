@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Raven",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "io.kehl.raven",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -25,7 +25,9 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": ["https://releases.crabnebula.cloud/raven/{{target}}/{{arch}}/{{current_version}}"],
+      "endpoints": [
+        "https://releases.crabnebula.cloud/raven/{{target}}/{{arch}}/{{current_version}}"
+      ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVGRjQ1MTAyMEE3RTU5QkMKUldTOFdYNEtBbEgwN3p3czU0VVd6emk4VkxKalFjNWZDNlBOdy82ZFh6MTUrRmtiSlpkSTlaYisK"
     }
   },
