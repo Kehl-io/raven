@@ -1,0 +1,3 @@
+#!/bin/sh
+cat >/dev/null
+printf '%s' '{"title":"Plugin Artifact for Task 11","content_markdown":"# Plugin Artifact for Task 11\n\nThis is deterministic plugin output.","metadata":{"fixture":"deterministic_artifact","subject":"Task 11"},"source_refs":["plugin:deterministic_artifact"],"raw_result_json":{"subject":"Task 11"},"tool_trace":[{"tool_id":"deterministic_artifact.build_artifact","status":"succeeded","input_summary":{"subject":"Task 11"},"output_summary":{"title":"Plugin Artifact for Task 11"},"source_refs":["plugin:deterministic_artifact"]}]}'
