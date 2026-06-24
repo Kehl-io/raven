@@ -1,0 +1,42 @@
+- name: bug
+  color: "d73a4a"
+  description: "Something isn't working"
+- name: enhancement
+  color: "a2eeef"
+  description: "New feature or improvement"
+- name: good-first-issue
+  color: "7057ff"
+  description: "Good for newcomers to the project"
+- name: help-wanted
+  color: "008672"
+  description: "Extra attention is needed"
+- name: workflows
+  color: "f9d0c4"
+  description: "Workflow engine and execution"
+- name: tray
+  color: "1d76db"
+  description: "Menu bar, tray icon, and background mode"
+- name: ui
+  color: "5319e7"
+  description: "Frontend UI and UX changes"
+- name: scheduler
+  color: "fbca04"
+  description: "Background scheduler and scheduling"
+- name: providers
+  color: "c5def5"
+  description: "AI provider integrations"
+- name: documentation
+  color: "0075ca"
+  description: "Documentation improvements"
+- name: breaking-change
+  color: "b60205"
+  description: "Introduces a breaking change"
+- name: dependencies
+  color: "0366d6"
+  description: "Dependency updates"
+- name: security
+  color: "ee0701"
+  description: "Security-related changes"
+- name: performance
+  color: "fbca04"
+  description: "Performance improvements"
