@@ -1,0 +1,28 @@
+{
+  "id": "deterministic_artifact",
+  "name": "Deterministic Artifact",
+  "version": "0.1.0",
+  "description": "Builds deterministic artifacts for plugin workflow tests.",
+  "steps": [
+    {
+      "kind": "provider_action",
+      "provider": "deterministic_artifact",
+      "action": "build_artifact",
+      "display_name": "Build artifact",
+      "permissions": ["plugin:execute"],
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "output_schema": {
+        "type": "object",
+        "required": ["title", "content_markdown"]
+      },
+      "execution": {
+        "command": "bin/deterministic-artifact-plugin",
+        "args": [],
+        "timeout_ms": 5000
+      }
+    }
+  ]
+}

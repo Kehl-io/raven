@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+.auk
+.hugin
+.raven
+src-tauri/.hugin/
+src-tauri/.raven/
+.superpowers
+.agents/
+coverage
+playwright-report
+test-results
+tmp/
+.worktrees
+src-tauri/target
+docs/branding/auk-fierce-*.svg
+docs/branding/auk-fire-*.svg
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Dev tooling (local paths)
+.mcp.json
+.claude/
+.codex/
+
+# Environment
+.env*
+!.env.example
+
+# Design docs (private)
+docs/superpowers/
+docs/ux/
