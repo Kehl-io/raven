@@ -752,7 +752,7 @@ describe("Command Center selectors", () => {
         }),
         expect.objectContaining({
           label: "Open scheduler settings",
-          action: { kind: "open-settings", payload: { tab: "automation", target: { type: "automation", id: "scheduler", label: "Scheduler" } } },
+          action: { kind: "open-settings", payload: { tab: "advanced", target: { type: "automation", id: "scheduler", label: "Scheduler" } } },
         }),
       ]),
     );

@@ -207,6 +207,9 @@ export function WorkflowsView() {
         ? workflowRosterCommand.sortKey
         : current.sortKey,
     }));
+    if (workflowRosterCommand.statuses || workflowRosterCommand.schedules) {
+      setFiltersExpanded(true);
+    }
   }, [workflowRosterCommand]);
 
   const rosterItems = useMemo(

@@ -897,7 +897,7 @@ export function buildAssistantSuggestions(
       type: "configure",
       priority: "medium",
       surface,
-      action: { kind: "open-settings", payload: { tab: "providers" } },
+      action: { kind: "open-settings", payload: { tab: "general" } },
     },
     {
       label: "Open scheduler settings",
@@ -906,7 +906,7 @@ export function buildAssistantSuggestions(
       surface,
       action: {
         kind: "open-settings",
-        payload: { tab: "automation", target: { type: "automation", id: "scheduler", label: "Scheduler" } },
+        payload: { tab: "advanced", target: { type: "automation", id: "scheduler", label: "Scheduler" } },
       },
     },
     {
