@@ -4057,6 +4057,9 @@ describe("Raven app shell", () => {
           projects: [],
         };
       }
+      if (command === "detect_tools") {
+        return [{ id: "cli.nestweaver", displayName: "NestWeaver", status: "available" }];
+      }
       throw new Error(`Unexpected command ${command}`);
     });
 
@@ -4109,6 +4112,7 @@ describe("Raven app shell", () => {
       if (command === "get_onboarding_completed") return true;
       if (command === "complete_onboarding") return null;
       if (command === "detect_nestweaver") return null;
+      if (command === "detect_tools") return [];
       throw new Error(`Unexpected command ${command}`);
     });
 
@@ -4119,9 +4123,8 @@ describe("Raven app shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByRole("heading", { name: "Choose context sources" });
 
-    expect(await screen.findByText("Unavailable on this machine.")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Local git" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "NestWeaver" })).toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: "NestWeaver" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByRole("heading", { name: "Choose output destination" })).toBeInTheDocument();
@@ -4166,6 +4169,9 @@ describe("Raven app shell", () => {
           db_path: "/redacted/project-db",
           projects: ["raven"],
         };
+      }
+      if (command === "detect_tools") {
+        return [{ id: "cli.nestweaver", displayName: "NestWeaver", status: "available" }];
       }
       throw new Error(`Unexpected command ${command}`);
     });

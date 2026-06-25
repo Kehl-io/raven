@@ -466,6 +466,7 @@ export function SetupWizard() {
 
   const visibleContextSources = contextSources.filter((source) => {
     if (source.id === "github") return isToolAvailable("cli.gh");
+    if (source.id === "nestweaver") return isToolAvailable("cli.nestweaver");
     return true;
   });
 

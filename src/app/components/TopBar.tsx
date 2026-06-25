@@ -426,7 +426,7 @@ export function TopBar() {
             <div className="top-status-actions">
               <button
                 type="button"
-                onClick={() => openSettingsTab("providers")}
+                onClick={() => openSettingsTab("general")}
               >
                 Open provider settings
               </button>

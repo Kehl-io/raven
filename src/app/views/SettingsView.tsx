@@ -850,7 +850,7 @@ export function SettingsView() {
                         setTheme(next);
                         persistThemePreferences(next, customAccent);
                         setThemeNotice("Theme saved locally.");
-                        recordSettingsChange("Appearance theme saved", "general", settingsTargetKey("system", "appearance"));
+                        recordSettingsChange("Appearance theme saved", "general", settingsTargetKey("general", "appearance"));
                       }}
                     >
                       <option value="aurora-dark">Aurora dark</option>
@@ -917,7 +917,7 @@ export function SettingsView() {
                       persistThemePreferences(imported.theme, imported.accent);
                       setThemeExportText(JSON.stringify(imported, null, 2));
                       setThemeNotice("Theme imported.");
-                      recordSettingsChange("Appearance theme imported", "general", settingsTargetKey("system", "appearance"));
+                      recordSettingsChange("Appearance theme imported", "general", settingsTargetKey("general", "appearance"));
                     }}
                   >
                     <Upload size={15} />
