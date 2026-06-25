@@ -8381,3 +8381,72 @@ dd {
 .onboarding-continue:hover {
   opacity: 0.9;
 }
+
+/* Workflow filter collapse */
+.workflow-filter-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.workflow-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.workflow-filter-toggle:hover {
+  border-color: var(--accent);
+}
+
+.filter-active-chip {
+  background: var(--accent);
+  color: white;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Workflow health footer */
+.workflow-roster-footer {
+  margin-top: var(--space-3);
+}
+
+.workflow-health-footer {
+  padding: var(--space-2) 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Optimization suggestions collapse */
+.workflow-suggestions-collapse {
+  margin-top: var(--space-2);
+}
+
+.workflow-suggestions-collapse summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+.workflow-suggestions-collapse summary::marker {
+  display: none;
+}
+
+.workflow-suggestions-collapse summary::before {
+  content: "▸ ";
+}
+
+.workflow-suggestions-collapse[open] summary::before {
+  content: "▾ ";
+}

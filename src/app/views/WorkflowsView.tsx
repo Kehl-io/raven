@@ -183,6 +183,7 @@ export function WorkflowsView() {
   const [bulkNotice, setBulkNotice] = useState("No workflows selected.");
   const [bulkActionInFlight, setBulkActionInFlight] = useState(false);
   const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<string[]>([]);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(rosterState));
@@ -243,6 +244,9 @@ export function WorkflowsView() {
     () => buildActiveChips(rosterState, setRosterState),
     [rosterState],
   );
+  const activeFilterCount = [rosterState.statuses, rosterState.schedules, rosterState.approvals, rosterState.costs].filter(
+    (arr) => arr.length > 0,
+  ).length;
   const clearFilters = () => {
     setRosterState((current) => ({
       ...defaultRosterState,
@@ -408,55 +412,65 @@ export function WorkflowsView() {
         {runNotice && <span className="success-note">{runNotice}</span>}
       </header>
 
-      <WorkflowRosterToolbar
-        state={rosterState}
-        chips={activeChips}
-        resultCount={filteredItems.length}
-        totalCount={rosterItems.length}
-        onStateChange={setRosterState}
-        onClearFilters={clearFilters}
-      />
-
-      <div className="workflow-saved-view-row" aria-label="Saved workflow views">
-        <span>Saved views</span>
-        <div className="workflow-saved-view-buttons">
-          {savedViews.map((view) => (
-            <span key={view.id} className="workflow-saved-view-item">
-              <button type="button" aria-label={`Saved view ${view.name}`} onClick={() => applySavedView(view)}>
-                {view.name}
-              </button>
-              {!view.builtIn && (
-                <button
-                  type="button"
-                  className="workflow-saved-view-delete"
-                  aria-label={`Delete saved view ${view.name}`}
-                  title={`Delete ${view.name}`}
-                  onClick={() => deleteCustomSavedView(view.id)}
-                >
-                  Delete
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-        <label className="workflow-save-view-control">
-          <span>Save current view</span>
-          <input
-            value={savedViewName}
-            onChange={(event) => setSavedViewName(event.currentTarget.value)}
-            placeholder="My filtered view"
-          />
-        </label>
-        <button type="button" onClick={saveCurrentView}>
-          Save view
+      <div className="workflow-filter-toggle-row">
+        <button
+          className="workflow-filter-toggle"
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+          type="button"
+        >
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="filter-active-chip">{activeFilterCount} active</span>
+          )}
         </button>
       </div>
+      {filtersExpanded && (
+        <>
+          <WorkflowRosterToolbar
+            state={rosterState}
+            chips={activeChips}
+            resultCount={filteredItems.length}
+            totalCount={rosterItems.length}
+            onStateChange={setRosterState}
+            onClearFilters={clearFilters}
+          />
 
-      <WorkflowRosterInsights
-        items={rosterItems}
-        selectedItems={selectedItems}
-        suggestions={optimizationSuggestions}
-      />
+          <div className="workflow-saved-view-row" aria-label="Saved workflow views">
+            <span>Saved views</span>
+            <div className="workflow-saved-view-buttons">
+              {savedViews.map((view) => (
+                <span key={view.id} className="workflow-saved-view-item">
+                  <button type="button" aria-label={`Saved view ${view.name}`} onClick={() => applySavedView(view)}>
+                    {view.name}
+                  </button>
+                  {!view.builtIn && (
+                    <button
+                      type="button"
+                      className="workflow-saved-view-delete"
+                      aria-label={`Delete saved view ${view.name}`}
+                      title={`Delete ${view.name}`}
+                      onClick={() => deleteCustomSavedView(view.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            <label className="workflow-save-view-control">
+              <span>Save current view</span>
+              <input
+                value={savedViewName}
+                onChange={(event) => setSavedViewName(event.currentTarget.value)}
+                placeholder="My filtered view"
+              />
+            </label>
+            <button type="button" onClick={saveCurrentView}>
+              Save view
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="workflow-bulk-action-bar" aria-label="Selected workflow bulk actions">
           <strong>{selectedItems.length} selected</strong>
@@ -614,6 +628,12 @@ export function WorkflowsView() {
           ))}
         </div>
       )}
+
+      <WorkflowRosterHealthFooter
+        items={rosterItems}
+        selectedItems={selectedItems}
+        suggestions={optimizationSuggestions}
+      />
     </section>
   );
 }
@@ -906,7 +926,7 @@ function WorkflowRosterRow({
   );
 }
 
-function WorkflowRosterInsights({
+function WorkflowRosterHealthFooter({
   items,
   selectedItems,
   suggestions,
@@ -920,10 +940,9 @@ function WorkflowRosterInsights({
     : 0;
 
   return (
-    <section className="workflow-roster-insights" aria-label="Workflow health and optimization insights">
-      <div className="workflow-health-summary">
-        <span>Workflow health</span>
-        <strong>{averageHealth}/100 average</strong>
+    <div className="workflow-roster-footer" aria-label="Workflow health and optimization insights">
+      <div className="workflow-health-footer">
+        Health: {averageHealth}/100 average
       </div>
 
       {selectedItems.length >= 2 && (
@@ -960,13 +979,13 @@ function WorkflowRosterInsights({
         </section>
       )}
 
-      <section className="workflow-optimization-panel" aria-label="Workflow optimization suggestions">
-        <header>
-          <strong>Optimization suggestions</strong>
-        </header>
-        {suggestions.length === 0 ? (
-          <p>No workflow optimizations are suggested right now.</p>
-        ) : (
+      <details className="workflow-suggestions-collapse">
+        <summary>
+          {suggestions.length === 0
+            ? "No optimization suggestions"
+            : `${suggestions.length} optimization suggestion${suggestions.length === 1 ? "" : "s"}`}
+        </summary>
+        {suggestions.length > 0 && (
           <div className="workflow-suggestion-grid">
             {suggestions.map((suggestion) => (
               <article key={suggestion.id}>
@@ -976,8 +995,8 @@ function WorkflowRosterInsights({
             ))}
           </div>
         )}
-      </section>
-    </section>
+      </details>
+    </div>
   );
 }
 
