@@ -6694,16 +6694,19 @@ dd {
 
 .wizard-review-summary {
   display: grid;
+  grid-template-columns: 1fr;
   gap: var(--space-2);
   margin: 0;
+  min-width: 0;
 }
 
-.wizard-review-summary div {
+.wizard-review-summary > div {
   display: grid;
-  grid-template-columns: minmax(8rem, 0.35fr) 1fr;
+  grid-template-columns: 8rem 1fr;
   gap: var(--space-3);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--surface-line);
+  min-width: 0;
 }
 
 .wizard-review-summary dt {
@@ -6715,6 +6718,8 @@ dd {
 
 .wizard-review-summary dd {
   margin: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .wizard-validation {
@@ -6822,7 +6827,7 @@ dd {
 
   .wizard-option-card,
   .wizard-migration-card,
-  .wizard-review-summary div {
+  .wizard-review-summary > div {
     grid-template-columns: 1fr;
   }
 
