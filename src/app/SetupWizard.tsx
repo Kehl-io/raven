@@ -26,6 +26,7 @@ import { formatSchedule, groupProviderProfiles } from "../domain/format";
 import {
   approveWorkflowSignatureBaseline,
   detectNestWeaver,
+  detectTools,
   evaluateWorkflowDefinitionPreflight,
   type NestWeaverDetection,
 } from "./tauriBridge";
@@ -421,6 +422,7 @@ export function SetupWizard() {
   const [workflowImportText, setWorkflowImportText] = useState("");
   const [workflowImportError, setWorkflowImportError] = useState("");
   const [nestWeaverDetection, setNestWeaverDetection] = useState<NestWeaverDetection | null | undefined>(undefined);
+  const [detectedTools, setDetectedTools] = useState<Array<{ id: string; status: string }>>([]);
   const [selectedContexts, setSelectedContexts] = useState<Record<ContextSourceId, boolean>>({
     local_git: true,
     github: false,
@@ -452,6 +454,20 @@ export function SetupWizard() {
   } | null>(null);
   const hasLegacySetupMarker = typeof window !== "undefined" &&
     localStorage.getItem("hugin:setup-complete") === "true";
+
+  useEffect(() => {
+    void detectTools().then((tools) => {
+      setDetectedTools(tools.map((t) => ({ id: t.id, status: t.status })));
+    });
+  }, []);
+
+  const isToolAvailable = (toolId: string) =>
+    detectedTools.some((t) => t.id === toolId && t.status === "available");
+
+  const visibleContextSources = contextSources.filter((source) => {
+    if (source.id === "github") return isToolAvailable("cli.gh");
+    return true;
+  });
 
   const providerGroups = useMemo(
     () => groupProviderProfiles(state.agentAuthProfiles),
@@ -490,10 +506,6 @@ export function SetupWizard() {
     [effectiveAgentAuthProfiles],
   );
   const providerRefreshReady = providerRefreshState === "ready";
-  const allGroupsReady =
-    providerRefreshReady &&
-    effectiveProviderGroups.length > 0 &&
-    effectiveProviderGroups.every((g) => g.isReady);
   const hasAnyProvider = providerRefreshReady && effectiveProviderGroups.some((g) => g.isReady);
   const availableProfile = providerRefreshReady
     ? effectiveProviderGroups.find((g) => g.isReady)?.primaryProfile
@@ -1057,13 +1069,13 @@ export function SetupWizard() {
                 Back
               </button>
               <button
-                className={allGroupsReady ? "primary-action" : undefined}
+                className={hasAnyProvider ? "primary-action" : undefined}
                 type="button"
                 onClick={goNext}
                 disabled={providerRefreshState === "loading"}
               >
                 Continue
-                {allGroupsReady && <ArrowRight size={16} />}
+                {hasAnyProvider && <ArrowRight size={16} />}
               </button>
               <button type="button" onClick={skipCurrent} disabled={providerRefreshState === "loading"}>
                 Skip
@@ -1077,7 +1089,7 @@ export function SetupWizard() {
             <h2>Choose context sources</h2>
             <p>Local git is ready by default. Optional sources can be connected later without blocking setup.</p>
             <div className="wizard-option-list">
-              {contextSources.map((source) => {
+              {visibleContextSources.map((source) => {
                 const provider = state.providers.find((item) => item.id === source.providerId);
                 const checked = selectedContexts[source.id];
                 const isNestWeaver = source.id === "nestweaver";
