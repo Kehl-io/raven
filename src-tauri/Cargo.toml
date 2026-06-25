@@ -4,6 +4,7 @@ version = "0.2.0"
 description = "Raven local AI workflow desktop app"
 authors = ["Kehl IO"]
 edition = "2021"
+default-run = "raven"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -36,7 +36,6 @@ Raven is a local-first AI workflow desktop app for creating, scheduling, and run
 
 - [Rust](https://rustup.rs/) (stable)
 - [Node.js](https://nodejs.org/) 20+ and [pnpm](https://pnpm.io/)
-- [Tauri CLI](https://v2.tauri.app/) — `cargo install tauri-cli`
 
 ### Run the desktop app
 

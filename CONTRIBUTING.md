@@ -4,7 +4,6 @@
 
 - **Rust** (stable) — [rustup.rs](https://rustup.rs/)
 - **Node.js** 20+ and **pnpm** — `npm install -g pnpm`
-- **Tauri CLI** — `cargo install tauri-cli`
 - **macOS** for tray/menu bar features (the rest builds cross-platform)
 
 ## Getting Started
