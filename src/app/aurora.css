@@ -182,17 +182,59 @@ textarea {
   font: inherit;
 }
 
-button,
+input,
 select,
-input {
+textarea {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  appearance: auto;
+}
+
+input[type="color"] {
+  padding: 0.25rem;
+  height: 2rem;
+}
+
+button {
   border: 1px solid var(--surface-line);
   border-radius: var(--radius);
   color: var(--text);
   background: var(--control-bg);
   max-width: 100%;
-}
-
-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1477,12 +1519,6 @@ textarea:focus-visible,
 textarea {
   min-height: 7rem;
   resize: vertical;
-  border: 1px solid var(--surface-line);
-  border-radius: var(--radius);
-  padding: 0.75rem;
-  color: var(--text);
-  background: var(--surface-raised);
-  max-width: 100%;
 }
 
 .assistant-drawer textarea {
@@ -2474,11 +2510,6 @@ dd {
   width: 100%;
   min-width: 0;
   resize: vertical;
-  border: 1px solid var(--surface-line);
-  border-radius: 8px;
-  padding: var(--space-2);
-  background: var(--surface-raised);
-  color: var(--text);
   font: 0.82rem/1.45 var(--font-mono);
 }
 
