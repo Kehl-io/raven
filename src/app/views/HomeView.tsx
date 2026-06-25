@@ -402,7 +402,7 @@ export function HomeView() {
         return;
       }
       if (target === "providers") {
-        setActiveSettingsTab("providers");
+        setActiveSettingsTab("general");
         setView("settings");
         return;
       }
@@ -477,7 +477,7 @@ export function HomeView() {
           type="button"
           className={`status-strip-item ${providerNeedsAttention ? "needs-attention is-mobile-critical" : ""}`}
           onClick={() => {
-            setActiveSettingsTab("providers");
+            setActiveSettingsTab("general");
             setView("settings");
           }}
         >
@@ -489,7 +489,7 @@ export function HomeView() {
           type="button"
           className={`status-strip-item ${schedulerStatus?.running ? "" : "needs-attention is-mobile-critical"}`}
           onClick={() => {
-            setActiveSettingsTab("automation");
+            setActiveSettingsTab("advanced");
             setView("settings");
           }}
         >

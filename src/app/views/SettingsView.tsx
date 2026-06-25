@@ -17,7 +17,7 @@ import type {
 } from "../../domain/types";
 import { detectNestWeaver, getAppVersion, getDockVisibility, getGlobalShortcut, getSavedSettings, listPlugins, setDockVisibility, setGlobalShortcut as tauriSetGlobalShortcut } from "../tauriBridge";
 
-type SettingsTabId = "providers" | "context" | "outputs" | "automation" | "extensions" | "system";
+type SettingsTabId = "general" | "context" | "tools" | "advanced";
 type ReadinessStatus = "ready" | "not_configured" | "unavailable" | "error";
 type AppearanceTheme = "aurora-dark" | "aurora-light";
 
@@ -36,12 +36,10 @@ interface SettingsHistoryEntry {
 }
 
 const settingsTabs: { id: SettingsTabId; label: string }[] = [
-  { id: "providers", label: "Providers" },
-  { id: "context", label: "Context" },
-  { id: "outputs", label: "Outputs" },
-  { id: "automation", label: "Automation" },
-  { id: "extensions", label: "Extensions" },
-  { id: "system", label: "System" },
+  { id: "general", label: "General" },
+  { id: "context", label: "Context Sources" },
+  { id: "tools", label: "Tools & Capabilities" },
+  { id: "advanced", label: "Advanced" },
 ];
 
 const THEME_PREFERENCES_STORAGE_KEY = "raven:theme-preferences";
@@ -230,7 +228,7 @@ export function SettingsView() {
   const selectedBuilder = agentAuthProfiles.find((p) => p.id === builderProfileId);
   const normalizedActiveTab = settingsTabs.some((tab) => tab.id === activeSettingsTab)
     ? activeSettingsTab as SettingsTabId
-    : "providers";
+    : "general";
   const providersById = new Map(state.providers.map((provider) => [provider.id, provider]));
   const focusedTargetKey = settingsFocusTarget
     ? settingsTargetKey(settingsFocusTarget.type, settingsFocusTarget.id)
@@ -416,40 +414,56 @@ export function SettingsView() {
     });
   };
 
+  const contextSourcesNeedingConfig = state.providers.filter((p) => {
+    if (p.kind !== "context") return false;
+    const toolId = p.id === "github" ? "cli.gh" : p.id === "nestweaver" ? "cli.nestweaver" : null;
+    if (!toolId) return p.status === "needs_config";
+    const tool = state.rawToolInventory.find((t) => t.id === toolId);
+    return tool?.status === "available" && p.status !== "available";
+  }).length;
+
   const navItems = [
-    { id: "providers", label: "Providers", badge: groupsNeedingAttention },
+    { id: "general", label: "General", badge: readyProviderGroups.length > 0 ? 0 : groupsNeedingAttention },
     {
       id: "context",
-      label: "Context",
-      badge: state.providers.filter((p) => p.kind === "context" && p.status !== "available").length,
+      label: "Context Sources",
+      badge: contextSourcesNeedingConfig,
     },
-    {
-      id: "outputs",
-      label: "Outputs",
-      badge: state.providers.filter((p) => p.kind === "artifact_destination" && p.status !== "available").length,
-    },
-    {
-      id: "automation",
-      label: "Automation",
-      badge: state.runs.filter((run) => run.status === "retryable" || run.status === "blocked").length,
-    },
-    { id: "extensions", label: "Extensions", badge: 0 },
-    { id: "system", label: "System", badge: 0 },
+    { id: "tools", label: "Tools & Capabilities", badge: 0 },
+    { id: "advanced", label: "Advanced", badge: 0 },
   ] as const;
   const destinationPaths = { ...savedArtifactDestinationPaths, ...artifactDestinationPaths };
+  const isCliAvailable = (toolId: string) =>
+    state.rawToolInventory.find((t) => t.id === toolId)?.status === "available";
+
+  function contextSourceStatus(
+    sourceId: string,
+    providerStatus: ProviderState | undefined,
+  ): { status: ReadinessStatus; statusLabel: string } {
+    const cliMap: Record<string, string> = { github: "cli.gh", nestweaver: "cli.nestweaver" };
+    const cliId = cliMap[sourceId];
+    if (cliId && !isCliAvailable(cliId)) {
+      return { status: "unavailable", statusLabel: "Not available" };
+    }
+    if (providerStatus === "available") {
+      return { status: "ready", statusLabel: "Ready" };
+    }
+    return { status: "not_configured", statusLabel: "Configure" };
+  }
+
   const contextSources = [
     {
       id: "local_git",
       title: "Local git",
       description: "Reads recent commits and changed files from this workspace.",
-      status: providerStateToReadiness(providersById.get("local_git")?.status ?? "available"),
+      ...contextSourceStatus("local_git", providersById.get("local_git")?.status ?? "available"),
       summary: providersById.get("local_git")?.summary ?? "Ready for current workspace activity.",
     },
     {
       id: "github",
       title: "GitHub",
       description: "Pulls recent pull requests and issues for repository activity.",
-      status: providerStateToReadiness(providersById.get("github")?.status),
+      ...contextSourceStatus("github", providersById.get("github")?.status),
       summary: githubRepoSlug.trim()
         ? `${githubRepoSlug.trim()}${providersById.get("github")?.status === "available" ? "" : " saved; token may still be required."}`
         : providersById.get("github")?.summary,
@@ -458,21 +472,21 @@ export function SettingsView() {
       id: "document_import",
       title: "Documents",
       description: "Reads digital PDFs from a configured local folder.",
-      status: providerStateToReadiness(providersById.get("document_import")?.status),
+      ...contextSourceStatus("document_import", providersById.get("document_import")?.status),
       summary: documentImportPath.trim() || providersById.get("document_import")?.summary,
     },
     {
       id: "ai_chat_import",
       title: "AI chat imports",
       description: "Imports exported AI conversation files from a local folder.",
-      status: providerStateToReadiness(providersById.get("ai_chat_import")?.status),
+      ...contextSourceStatus("ai_chat_import", providersById.get("ai_chat_import")?.status),
       summary: aiChatImportPath.trim() || providersById.get("ai_chat_import")?.summary,
     },
     {
       id: "nestweaver",
       title: "NestWeaver",
       description: "Indexes codebase structure for richer project context.",
-      status: providerStateToReadiness(providersById.get("nestweaver")?.status),
+      ...contextSourceStatus("nestweaver", providersById.get("nestweaver")?.status),
       summary: nestWeaverDbPath.trim() || providersById.get("nestweaver")?.summary,
     },
   ];
@@ -516,11 +530,6 @@ export function SettingsView() {
     .sort((a, b) => (a.nextRun ?? "").localeCompare(b.nextRun ?? ""));
   const nextScheduledRun = scheduledWithNextRun[0];
   const retryableRuns = state.runs.filter((run) => run.status === "retryable" || run.status === "blocked");
-  const approvalDefaults = state.workflows.reduce<Record<string, number>>((counts, workflow) => {
-    const label = workflowApprovalLabel(workflow);
-    counts[label] = (counts[label] ?? 0) + 1;
-    return counts;
-  }, {});
 
   return (
     <section className="view-grid">
@@ -554,103 +563,415 @@ export function SettingsView() {
         </nav>
 
         <div className="settings-content">
-          {/* Providers */}
-          {normalizedActiveTab === "providers" && (
+          {/* General */}
+          {normalizedActiveTab === "general" && (
             <section>
-              <div className="settings-status-bar">
-                <span>{readyProviderGroups.length} of {providerGroups.length} provider groups ready</span>
-                <button
-                  type="button"
-                  onClick={async () => setReadinessNotice(await actions.refreshProviderReadiness())}
-                >
-                  Refresh
-                </button>
-                {readinessNotice && <span className="success-note">{readinessNotice}</span>}
+              {/* AI Provider */}
+              <div className="settings-card">
+                <h2>AI Provider</h2>
+                <label>
+                  Active builder
+                  <select
+                    value={builderProfileId}
+                    onChange={(e) => actions.updateBuilderProfile(e.currentTarget.value)}
+                  >
+                    {agentAuthProfiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {llmProfile && (
+                  <dl>
+                    <dt>Builder</dt>
+                    <dd>{selectedBuilder?.displayName ?? builderProfileId}</dd>
+                    <dt>Provider</dt>
+                    <dd>{llmProfile.providerId}</dd>
+                    <dt>Model</dt>
+                    <dd>{llmProfile.model}</dd>
+                    <dt>Effort</dt>
+                    <dd>{llmProfile.effort}</dd>
+                  </dl>
+                )}
+                <div className="settings-status-bar">
+                  <span>{readyProviderGroups.length} of {providerGroups.length} provider groups ready</span>
+                  <button
+                    type="button"
+                    onClick={async () => setReadinessNotice(await actions.refreshProviderReadiness())}
+                  >
+                    Refresh
+                  </button>
+                  {readinessNotice && <span className="success-note">{readinessNotice}</span>}
+                </div>
+
+                {unreadyProviderGroups.length > 0 && (
+                  <div>
+                    <h3>Setup required</h3>
+                    <p>These provider groups need a working profile before live generation can use them.</p>
+                    <div className="settings-cards">
+                      {unreadyProviderGroups.map((group) => {
+                        const groupTargetKey = settingsTargetKey("provider", slugTargetId(group.groupName));
+                        const profileTargetKeys = group.profiles.map((profile) => settingsTargetKey("provider", profile.id));
+                        return (
+                        <section
+                          key={group.groupName}
+                          role="region"
+                          aria-label={`${group.groupName} provider settings`}
+                          tabIndex={-1}
+                          data-settings-target={groupTargetKey}
+                          data-settings-targets={[groupTargetKey, ...profileTargetKeys].join(" ")}
+                          className={
+                            focusedTargetKey === groupTargetKey || profileTargetKeys.includes(focusedTargetKey)
+                              ? "settings-targeted"
+                              : undefined
+                          }
+                        >
+                          <ProviderGroupCard
+                            group={group}
+                            onConfigureKey={(profileId, apiKey) =>
+                              void actions.configureProviderCredential(profileId, apiKey)
+                            }
+                          />
+                        </section>
+                      );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {readyProviderGroups.length > 0 && (
+                  <div>
+                    <h3>Ready providers</h3>
+                    <div className="settings-cards">
+                      {readyProviderGroups.map((group) => {
+                        const groupTargetKey = settingsTargetKey("provider", slugTargetId(group.groupName));
+                        const profileTargetKeys = group.profiles.map((profile) => settingsTargetKey("provider", profile.id));
+                        return (
+                        <section
+                          key={group.groupName}
+                          role="region"
+                          aria-label={`${group.groupName} provider settings`}
+                          tabIndex={-1}
+                          data-settings-target={groupTargetKey}
+                          data-settings-targets={[groupTargetKey, ...profileTargetKeys].join(" ")}
+                          className={
+                            focusedTargetKey === groupTargetKey || profileTargetKeys.includes(focusedTargetKey)
+                              ? "settings-targeted"
+                              : undefined
+                          }
+                        >
+                          <ProviderGroupCard
+                            group={group}
+                            onConfigureKey={(profileId, apiKey) =>
+                              void actions.configureProviderCredential(profileId, apiKey)
+                            }
+                          />
+                        </section>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <ToolsAutonomyPanel
-                autonomyMode={state.autonomyMode}
-                categoryOverrides={state.autonomyCategoryOverrides}
-                capabilities={state.capabilityRegistry.capabilities}
-                rawTools={state.rawToolInventory}
-                grants={state.approvalGrants}
-                onModeChange={actions.setAutonomyMode}
-                onCategoryOverrideChange={actions.setAutonomyCategoryOverride}
-                onRefreshTools={actions.refreshCapabilityRegistry}
-                onRevokeGrant={actions.revokeApprovalGrant}
-              />
-
-              {unreadyProviderGroups.length > 0 && (
-                <div>
-                  <h2>Setup required</h2>
-                  <p>These provider groups need a working profile before live generation can use them.</p>
-                  <div className="settings-cards">
-                    {unreadyProviderGroups.map((group) => {
-                      const groupTargetKey = settingsTargetKey("provider", slugTargetId(group.groupName));
-                      const profileTargetKeys = group.profiles.map((profile) => settingsTargetKey("provider", profile.id));
-                      return (
-                      <section
-                        key={group.groupName}
-                        role="region"
-                        aria-label={`${group.groupName} provider settings`}
-                        tabIndex={-1}
-                        data-settings-target={groupTargetKey}
-                        data-settings-targets={[groupTargetKey, ...profileTargetKeys].join(" ")}
-                        className={
-                          focusedTargetKey === groupTargetKey || profileTargetKeys.includes(focusedTargetKey)
-                            ? "settings-targeted"
-                            : undefined
-                        }
-                      >
-                        <ProviderGroupCard
-                          group={group}
-                          onConfigureKey={(profileId, apiKey) =>
-                            void actions.configureProviderCredential(profileId, apiKey)
-                          }
-                        />
-                      </section>
-                    );
-                    })}
-                  </div>
+              {/* Output destination */}
+              <div className="settings-card">
+                <h2>Output destination</h2>
+                <div className="settings-status-bar">
+                  <span>{artifactDestinationProviders.filter((p) => p.status === "available").length} of {artifactDestinationProviders.length} destinations ready</span>
+                  <span className="settings-card-detail">
+                    Fallback: {fallbackDestination?.name ?? "Local App Store"}
+                  </span>
                 </div>
-              )}
 
-              <div>
-                <h2>Ready providers</h2>
-                <p>Ready groups can run workflow agent steps immediately.</p>
                 <div className="settings-cards">
-                  {readyProviderGroups.map((group) => {
-                    const groupTargetKey = settingsTargetKey("provider", slugTargetId(group.groupName));
-                    const profileTargetKeys = group.profiles.map((profile) => settingsTargetKey("provider", profile.id));
+                  {artifactDestinationProviders.map((provider) => {
+                    const path = destinationPaths[provider.id as ArtifactDestinationId] ??
+                      (provider.id === "local_app" ? "Local app storage" : "");
+                    const fallback = provider.fallbackProviderId
+                      ? providersById.get(provider.fallbackProviderId)?.name ?? provider.fallbackProviderId
+                      : "None";
                     return (
-                    <section
-                      key={group.groupName}
-                      role="region"
-                      aria-label={`${group.groupName} provider settings`}
-                      tabIndex={-1}
-                      data-settings-target={groupTargetKey}
-                      data-settings-targets={[groupTargetKey, ...profileTargetKeys].join(" ")}
-                      className={
-                        focusedTargetKey === groupTargetKey || profileTargetKeys.includes(focusedTargetKey)
-                          ? "settings-targeted"
-                          : undefined
-                      }
-                    >
-                      <ProviderGroupCard
-                        group={group}
-                        onConfigureKey={(profileId, apiKey) =>
-                          void actions.configureProviderCredential(profileId, apiKey)
-                        }
-                      />
-                    </section>
+                      <article
+                        className={`settings-card settings-readiness-card${
+                          focusedTargetKey === settingsTargetKey("output", provider.id) ? " settings-targeted" : ""
+                        }`}
+                        key={provider.id}
+                        tabIndex={-1}
+                        data-settings-target={settingsTargetKey("output", provider.id)}
+                      >
+                        <div className="settings-card-header">
+                          <strong>{provider.name}</strong>
+                          <span className={`readiness-pill readiness-pill-${provider.status}`}>
+                            {providerStatusLabel(provider.status)}
+                          </span>
+                        </div>
+                        <p>{provider.summary}</p>
+                        <dl className="settings-compact-dl">
+                          <dt>Path</dt>
+                          <dd>{path || "No folder configured"}</dd>
+                          <dt>Fallback</dt>
+                          <dd>{fallback}</dd>
+                        </dl>
+                      </article>
                     );
                   })}
-                  {readyProviderGroups.length === 0 && (
-                    <p className="empty-state">No provider groups are ready yet.</p>
-                  )}
                 </div>
+
+                <form
+                  className="credential-form"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const notice = await actions.configureArtifactDestination(
+                      artifactDestinationId,
+                      artifactDestinationPath,
+                    );
+                    if (isSuccessfulSettingsNotice(notice)) {
+                      setSavedArtifactDestinationPaths((current) => ({
+                        ...current,
+                        [artifactDestinationId]: artifactDestinationPath,
+                      }));
+                    }
+                    setArtifactDestinationNotice(notice);
+                  }}
+                >
+                  <label>
+                    Artifact destination
+                    <select
+                      value={artifactDestinationId}
+                      onChange={(e) => {
+                        const id = e.currentTarget.value as ArtifactDestinationId;
+                        setArtifactDestinationId(id);
+                        setArtifactDestinationPath(destinationPaths[id] ?? "");
+                      }}
+                    >
+                      <option value="markdown_folder">Markdown Folder</option>
+                      <option value="obsidian_vault">Obsidian Vault</option>
+                    </select>
+                  </label>
+                  <label>
+                    Destination folder
+                    <input
+                      value={artifactDestinationPath}
+                      onChange={(e) => setArtifactDestinationPath(e.currentTarget.value)}
+                      placeholder="~/Documents/Raven"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const selected = await actions.chooseArtifactDestinationFolderPath();
+                      if (selected) setArtifactDestinationPath(selected);
+                    }}
+                  >
+                    <FolderOpen size={16} />
+                    Choose destination folder
+                  </button>
+                  <button
+                    className="primary-action"
+                    type="submit"
+                    disabled={!artifactDestinationPath.trim()}
+                  >
+                    Save artifact destination
+                  </button>
+                </form>
+                {artifactDestinationNotice && (
+                  <span className={isSuccessfulSettingsNotice(artifactDestinationNotice) ? "success-note" : "error-note"}>
+                    {artifactDestinationNotice}
+                  </span>
+                )}
               </div>
 
+              {/* Menu Bar */}
+              <div className="settings-card">
+                <h2>Menu Bar</h2>
+                <p>Control how Raven appears in your system.</p>
+                <label>
+                  Show in Dock
+                  <span className="settings-card-detail">
+                    When off, Raven runs as a menu bar app only
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={dockVisible}
+                    onChange={async (e) => {
+                      const visible = e.target.checked;
+                      setDockVisible(visible);
+                      await setDockVisibility(visible);
+                    }}
+                  />
+                </label>
+                <label>
+                  Global Shortcut
+                  <span className="settings-card-detail">
+                    Opens Raven from anywhere
+                  </span>
+                  <input
+                    type="text"
+                    value={globalShortcut.replace(/CmdOrCtrl/g, "⌘").replace(/\+/g, " ")}
+                    onKeyDown={(e) => {
+                      e.preventDefault();
+                      const parts: string[] = [];
+                      if (e.metaKey) parts.push("CmdOrCtrl");
+                      if (e.shiftKey) parts.push("Shift");
+                      if (e.altKey) parts.push("Alt");
+                      if (e.ctrlKey && !e.metaKey) parts.push("Ctrl");
+                      const key = e.key;
+                      const isModifier = ["Meta", "Shift", "Alt", "Control"].includes(key);
+                      if (!isModifier && parts.length > 0) {
+                        parts.push(key.length === 1 ? key.toUpperCase() : key);
+                        const shortcut = parts.join("+");
+                        setGlobalShortcut(shortcut);
+                        void tauriSetGlobalShortcut(shortcut);
+                      }
+                    }}
+                    readOnly
+                    placeholder="Press keys..."
+                  />
+                </label>
+              </div>
+
+              {/* Appearance */}
+              <div className="settings-card settings-appearance-card" role="region" aria-label="Appearance settings">
+                <div className="settings-card-header">
+                  <h2>Appearance</h2>
+                  <Palette size={18} aria-hidden="true" />
+                </div>
+                <div className="appearance-controls">
+                  <label>
+                    Theme
+                    <select
+                      aria-label="Appearance theme"
+                      value={theme}
+                      onChange={(event) => {
+                        const next = event.currentTarget.value;
+                        if (!isAppearanceTheme(next)) return;
+                        setTheme(next);
+                        persistThemePreferences(next, customAccent);
+                        setThemeNotice("Theme saved locally.");
+                        recordSettingsChange("Appearance theme saved", "general", settingsTargetKey("system", "appearance"));
+                      }}
+                    >
+                      <option value="aurora-dark">Aurora dark</option>
+                      <option value="aurora-light">Aurora light</option>
+                    </select>
+                  </label>
+                  <label>
+                    Accent
+                    <span className="appearance-accent-row">
+                      <input
+                        type="color"
+                        aria-label="Custom accent color"
+                        value={customAccent}
+                        onChange={(event) => {
+                          const next = event.currentTarget.value;
+                          setCustomAccent(next);
+                          applyAccent(next);
+                          persistThemePreferences(theme, next);
+                          setThemeNotice("Accent saved locally.");
+                        }}
+                      />
+                      <input
+                        value={customAccent}
+                        onChange={(event) => {
+                          const next = event.currentTarget.value.trim();
+                          setCustomAccent(next);
+                          if (isHexColor(next)) {
+                            applyAccent(next);
+                            persistThemePreferences(theme, next);
+                            setThemeNotice("Accent saved locally.");
+                          }
+                        }}
+                        aria-label="Custom accent hex"
+                      />
+                    </span>
+                  </label>
+                </div>
+                <div className="appearance-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const preferences = buildThemePreferences(theme, customAccent);
+                      persistThemePreferences(theme, customAccent);
+                      const json = JSON.stringify(preferences, null, 2);
+                      setThemeExportText(json);
+                      downloadThemePreferences(preferences);
+                      setThemeNotice("Theme exported.");
+                    }}
+                  >
+                    <Download size={15} />
+                    Export theme
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const imported = parseThemePreferences(themeImportText);
+                      if (!imported) {
+                        setThemeNotice("Theme import must be valid raven.theme.v1 JSON.");
+                        return;
+                      }
+                      setTheme(imported.theme);
+                      setCustomAccent(imported.accent);
+                      applyAccent(imported.accent);
+                      persistThemePreferences(imported.theme, imported.accent);
+                      setThemeExportText(JSON.stringify(imported, null, 2));
+                      setThemeNotice("Theme imported.");
+                      recordSettingsChange("Appearance theme imported", "general", settingsTargetKey("system", "appearance"));
+                    }}
+                  >
+                    <Upload size={15} />
+                    Import theme
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAccent();
+                      setCustomAccent(DEFAULT_ACCENT);
+                      localStorage.removeItem(THEME_PREFERENCES_STORAGE_KEY);
+                      setThemeNotice("Theme reset locally.");
+                    }}
+                  >
+                    Reset appearance
+                  </button>
+                </div>
+                <label>
+                  Theme import JSON
+                  <textarea
+                    value={themeImportText}
+                    onChange={(event) => setThemeImportText(event.currentTarget.value)}
+                    aria-label="Theme import JSON"
+                    rows={4}
+                  />
+                </label>
+                {themeExportText && (
+                  <label>
+                    Last exported theme JSON
+                    <textarea
+                      value={themeExportText}
+                      aria-label="Last exported theme JSON"
+                      readOnly
+                      rows={4}
+                    />
+                  </label>
+                )}
+                {themeNotice && <span className="success-note">{themeNotice}</span>}
+              </div>
+
+              {/* About */}
+              <div className="settings-card">
+                <h2>About</h2>
+                <dl>
+                  <dt>Version</dt>
+                  <dd>{appVersion}</dd>
+                  <dt>Framework</dt>
+                  <dd>Tauri v2</dd>
+                </dl>
+                <button type="button" onClick={checkForUpdates}>
+                  Check for updates
+                </button>
+                {updateNotice && <span className="success-note">{updateNotice}</span>}
+              </div>
             </section>
           )}
 
@@ -669,7 +990,7 @@ export function SettingsView() {
                 title="Local git"
                 description={contextSources[0].description}
                 status={contextSources[0].status}
-                statusLabel={readinessLabel(contextSources[0].status)}
+                statusLabel={contextSources[0].statusLabel}
                 summary={contextSources[0].summary}
               >
                 <p className="settings-card-detail">
@@ -691,7 +1012,7 @@ export function SettingsView() {
                   title="GitHub"
                   description={contextSources[1].description}
                   status={contextSources[1].status}
-                  statusLabel={readinessLabel(contextSources[1].status)}
+                  statusLabel={contextSources[1].statusLabel}
                   summary={contextSources[1].summary}
                 >
                   <form
@@ -768,7 +1089,7 @@ export function SettingsView() {
                   title="Documents"
                   description={contextSources[2].description}
                   status={contextSources[2].status}
-                  statusLabel={readinessLabel(contextSources[2].status)}
+                  statusLabel={contextSources[2].statusLabel}
                   summary={contextSources[2].summary}
                 >
                   <form
@@ -844,7 +1165,7 @@ export function SettingsView() {
                   title="AI Chat imports"
                   description={contextSources[3].description}
                   status={contextSources[3].status}
-                  statusLabel={readinessLabel(contextSources[3].status)}
+                  statusLabel={contextSources[3].statusLabel}
                   summary={contextSources[3].summary}
                 >
                   <form
@@ -916,7 +1237,7 @@ export function SettingsView() {
                   title="NestWeaver"
                   description={contextSources[4].description}
                   status={contextSources[4].status}
-                  statusLabel={readinessLabel(contextSources[4].status)}
+                  statusLabel={contextSources[4].statusLabel}
                   summary={contextSources[4].summary}
                 >
                 <form
@@ -1008,247 +1329,114 @@ export function SettingsView() {
             </section>
           )}
 
-          {/* Outputs */}
-          {normalizedActiveTab === "outputs" && (
+          {/* Tools & Capabilities */}
+          {normalizedActiveTab === "tools" && (
             <section>
-              <div className="settings-status-bar">
-                <span>{artifactDestinationProviders.filter((p) => p.status === "available").length} of {artifactDestinationProviders.length} destinations ready</span>
-                <span className="settings-card-detail">
-                  Fallback: {fallbackDestination?.name ?? "Local App Store"}
-                </span>
-              </div>
-
-              <div className="settings-cards">
-                {artifactDestinationProviders.map((provider) => {
-                  const path = destinationPaths[provider.id as ArtifactDestinationId] ??
-                    (provider.id === "local_app" ? "Local app storage" : "");
-                  const fallback = provider.fallbackProviderId
-                    ? providersById.get(provider.fallbackProviderId)?.name ?? provider.fallbackProviderId
-                    : "None";
-                  return (
-                    <article
-                      className={`settings-card settings-readiness-card${
-                        focusedTargetKey === settingsTargetKey("output", provider.id) ? " settings-targeted" : ""
-                      }`}
-                      key={provider.id}
-                      tabIndex={-1}
-                      data-settings-target={settingsTargetKey("output", provider.id)}
-                    >
-                      <div className="settings-card-header">
-                        <strong>{provider.name}</strong>
-                        <span className={`readiness-pill readiness-pill-${provider.status}`}>
-                          {providerStatusLabel(provider.status)}
-                        </span>
-                      </div>
-                      <p>{provider.summary}</p>
-                      <dl className="settings-compact-dl">
-                        <dt>Path</dt>
-                        <dd>{path || "No folder configured"}</dd>
-                        <dt>Fallback</dt>
-                        <dd>{fallback}</dd>
-                      </dl>
-                    </article>
-                  );
-                })}
-              </div>
-
+              {/* Summary card */}
               <div className="settings-card">
-                <h2>Artifact destinations</h2>
-                <form
-                  className="credential-form"
-                  onSubmit={async (event) => {
-                    event.preventDefault();
-                    const notice = await actions.configureArtifactDestination(
-                      artifactDestinationId,
-                      artifactDestinationPath,
-                    );
-                    if (isSuccessfulSettingsNotice(notice)) {
-                      setSavedArtifactDestinationPaths((current) => ({
-                        ...current,
-                        [artifactDestinationId]: artifactDestinationPath,
-                      }));
+                <h2>Tools & Capabilities</h2>
+                <div className="tools-autonomy-summary" aria-label="Capability status counts">
+                  <span className="readiness-pill readiness-pill-available">
+                    {state.capabilityRegistry.capabilities.length} capabilities
+                  </span>
+                  <span className="readiness-pill readiness-pill-available">
+                    Mode: {state.autonomyMode.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <label>
+                  <span>Autonomy mode</span>
+                  <select
+                    aria-label="Autonomy mode"
+                    value={state.autonomyMode}
+                    onChange={(event) =>
+                      void actions.setAutonomyMode(event.currentTarget.value as typeof state.autonomyMode)
                     }
-                    setArtifactDestinationNotice(notice);
-                  }}
-                >
-                  <label>
-                    Artifact destination
-                    <select
-                      value={artifactDestinationId}
-                      onChange={(e) => {
-                        const id = e.currentTarget.value as ArtifactDestinationId;
-                        setArtifactDestinationId(id);
-                        setArtifactDestinationPath(destinationPaths[id] ?? "");
-                      }}
-                    >
-                      <option value="markdown_folder">Markdown Folder</option>
-                      <option value="obsidian_vault">Obsidian Vault</option>
-                    </select>
-                  </label>
-                  <label>
-                    Destination folder
-                    <input
-                      value={artifactDestinationPath}
-                      onChange={(e) => setArtifactDestinationPath(e.currentTarget.value)}
-                      placeholder="~/Documents/Raven"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const selected = await actions.chooseArtifactDestinationFolderPath();
-                      if (selected) setArtifactDestinationPath(selected);
-                    }}
                   >
-                    <FolderOpen size={16} />
-                    Choose destination folder
-                  </button>
-                  <button
-                    className="primary-action"
-                    type="submit"
-                    disabled={!artifactDestinationPath.trim()}
-                  >
-                    Save artifact destination
-                  </button>
-                </form>
-                {artifactDestinationNotice && (
-                  <span className={isSuccessfulSettingsNotice(artifactDestinationNotice) ? "success-note" : "error-note"}>
-                    {artifactDestinationNotice}
-                  </span>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* Automation */}
-          {normalizedActiveTab === "automation" && (
-            <section>
-              <section
-                className={`settings-card${focusedTargetKey === settingsTargetKey("automation", "scheduler") ? " settings-targeted" : ""}`}
-                role="region"
-                aria-label="Scheduler settings"
-                tabIndex={-1}
-                data-settings-target={settingsTargetKey("automation", "scheduler")}
-              >
-                <h2>Scheduler</h2>
-                {schedulerStatus && (
-                  <span className="success-note">
-                    Scheduler {schedulerStatus.running ? "running" : "stopped"} · checks every{" "}
-                    {schedulerStatus.pollIntervalSeconds}s
-                  </span>
-                )}
-                <label className="toggle-row">
-                  <input
-                    checked={schedulerEnabled}
-                    type="checkbox"
-                    onChange={async (e) => {
-                      const enabled = e.currentTarget.checked;
-                      setSchedulerEnabled(enabled);
-                      setSchedulerNotice(await actions.toggleScheduler(enabled));
-                      setSchedulerStatus((current) =>
-                        current ? { ...current, running: enabled } : current,
-                      );
-                    }}
-                  />
-                  Scheduled workflow checks
+                    <option value="ask_first">Ask First</option>
+                    <option value="safe_auto">Safe Auto</option>
+                    <option value="workspace_auto">Workspace Auto</option>
+                    <option value="power_auto">Power Auto</option>
+                  </select>
                 </label>
-                <button type="button" onClick={() => void actions.runDueSchedules()}>
-                  Run due schedules now
-                </button>
-                {schedulerNotice && <span className="success-note">{schedulerNotice}</span>}
-                {runNotice && <span className="success-note">{runNotice}</span>}
-              </section>
-
-              <div className="settings-cards">
-                <article className="settings-card settings-readiness-card">
-                  <h2>Due schedules</h2>
-                  <dl className="settings-compact-dl">
-                    <dt>Scheduled workflows</dt>
-                    <dd>{scheduledWorkflows.length}</dd>
-                    <dt>Next run</dt>
-                    <dd>
-                      {nextScheduledRun
-                        ? `${nextScheduledRun.workflow.definition.name} · ${formatDateTime(nextScheduledRun.nextRun)}`
-                        : "No enabled schedules"}
-                    </dd>
-                    <dt>Check interval</dt>
-                    <dd>
-                      {schedulerStatus
-                        ? `${schedulerStatus.pollIntervalSeconds}s`
-                        : "Scheduler status unavailable"}
-                    </dd>
-                  </dl>
-                </article>
-
-                <article className="settings-card settings-readiness-card">
-                  <h2>Retry queue</h2>
-                  <p>
-                    {retryableRuns.length > 0
-                      ? `${retryableRuns.length} run${retryableRuns.length === 1 ? "" : "s"} require retry or setup.`
-                      : "No retryable or blocked runs."}
-                  </p>
-                  {retryableRuns.length > 0 && (
-                    <ul className="source-ref-list">
-                      {retryableRuns.slice(0, 4).map((run) => (
-                        <li key={run.id}>{run.workflowName}: {run.setupAction ?? run.failureReason ?? run.status}</li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
-
-                <article className="settings-card settings-readiness-card">
-                  <h2>Approval defaults</h2>
-                  <dl className="settings-compact-dl">
-                    {Object.entries(approvalDefaults).map(([label, count]) => (
-                      <div key={label}>
-                        <dt>{label}</dt>
-                        <dd>{count}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </article>
               </div>
 
+              {/* Detected tools */}
               <div className="settings-card">
-                <h2>Scheduled workflows</h2>
-                {scheduledWithNextRun.length === 0 ? (
-                  <p className="empty-state">No enabled workflow schedules.</p>
+                <div className="settings-card-header">
+                  <h2>Detected tools</h2>
+                  <button type="button" onClick={() => void actions.refreshCapabilityRegistry()}>
+                    Refresh tools
+                  </button>
+                </div>
+                {state.rawToolInventory.length === 0 ? (
+                  <p className="empty-state">No tools detected yet.</p>
                 ) : (
-                  <div className="settings-table">
-                    {scheduledWithNextRun.map(({ workflow, nextRun }) => (
-                      <div className="settings-table-row" key={workflow.id}>
-                        <strong>{workflow.definition.name}</strong>
-                        <span>{formatSchedule(workflow.definition.schedule)}</span>
-                        <span>{formatDateTime(nextRun)}</span>
-                        <span>{workflowApprovalLabel(workflow)}</span>
-                      </div>
+                  <div className="tools-capability-list">
+                    {state.rawToolInventory.map((tool) => (
+                      <article key={tool.id} className="tools-capability-row">
+                        <span className="profile-row-main">
+                          <span className="profile-row-title">
+                            {tool.displayName}
+                            {tool.version && <span className="readiness-pill readiness-pill-available">v{tool.version}</span>}
+                          </span>
+                        </span>
+                        <span className={`readiness-pill readiness-pill-${tool.status}`}>
+                          {tool.status === "available" ? "Available" : tool.status === "unavailable" ? "Blocked" : String(tool.status)}
+                        </span>
+                      </article>
                     ))}
                   </div>
                 )}
               </div>
-            </section>
-          )}
 
-          {/* Extensions */}
-          {normalizedActiveTab === "extensions" && (
-            <section>
-              <div className="settings-status-bar">
-                <span>{plugins.length} extension{plugins.length === 1 ? "" : "s"} installed</span>
-                <button type="button" onClick={() => setView("marketplace")}>
-                  Open templates
-                </button>
+              {/* Capability registry */}
+              <div className="settings-card">
+                <h2>Capability registry</h2>
+                {state.capabilityRegistry.capabilities.length === 0 ? (
+                  <p className="empty-state">No capabilities detected yet.</p>
+                ) : (
+                  (() => {
+                    const groups = state.capabilityRegistry.capabilities.reduce<Map<string, typeof state.capabilityRegistry.capabilities>>((acc, cap) => {
+                      const key = cap.source || cap.category || "Other";
+                      acc.set(key, [...(acc.get(key) ?? []), cap]);
+                      return acc;
+                    }, new Map());
+                    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([groupName, caps]) => (
+                      <details key={groupName}>
+                        <summary>
+                          {groupName.replace(/[_-]+/g, " ").replace(/\b\w/g, (v) => v.toUpperCase())} ({caps.length})
+                        </summary>
+                        <div className="tools-capability-list">
+                          {caps.map((cap) => (
+                            <article key={cap.id} className="tools-capability-row">
+                              <span className="profile-row-main">
+                                <span className="profile-row-title">
+                                  {cap.displayName}
+                                  <span>{cap.category}</span>
+                                </span>
+                                <span className="profile-row-summary">{cap.description}</span>
+                              </span>
+                              <span className={`readiness-pill readiness-pill-${cap.status}`}>
+                                {cap.status === "available" ? "Available" : cap.status === "needs_auth" ? "Needs auth" : cap.status === "degraded" ? "Degraded" : "Blocked"}
+                              </span>
+                            </article>
+                          ))}
+                        </div>
+                      </details>
+                    ));
+                  })()
+                )}
               </div>
 
+              {/* Extensions */}
               <div className="settings-card">
-                <h2>Templates</h2>
-                <p>Workflow templates are available from Workflows / Templates.</p>
+                <div className="settings-card-header">
+                  <h2>Extensions</h2>
+                  <span className="settings-card-detail">{plugins.length} installed</span>
+                </div>
                 <button type="button" onClick={() => setView("marketplace")}>
                   Browse templates
                 </button>
-              </div>
-
-              <div>
-                <h2>Extension capabilities</h2>
                 {plugins.length === 0 ? (
                   <p className="empty-state">No extensions installed. Workflows currently use built-in steps only.</p>
                 ) : (
@@ -1293,249 +1481,133 @@ export function SettingsView() {
             </section>
           )}
 
-          {/* System */}
-          {normalizedActiveTab === "system" && (
+          {/* Advanced */}
+          {normalizedActiveTab === "advanced" && (
             <section>
-              <div className="settings-card">
-                <h2>Menu Bar</h2>
-                <p>Control how Raven appears in your system.</p>
-                <label>
-                  Show in Dock
-                  <span className="settings-card-detail">
-                    When off, Raven runs as a menu bar app only
+              {/* Automation overrides */}
+              <ToolsAutonomyPanel
+                autonomyMode={state.autonomyMode}
+                categoryOverrides={state.autonomyCategoryOverrides}
+                capabilities={state.capabilityRegistry.capabilities}
+                rawTools={state.rawToolInventory}
+                grants={state.approvalGrants}
+                onModeChange={actions.setAutonomyMode}
+                onCategoryOverrideChange={actions.setAutonomyCategoryOverride}
+                onRefreshTools={actions.refreshCapabilityRegistry}
+                onRevokeGrant={actions.revokeApprovalGrant}
+              />
+
+              {/* Scheduler */}
+              <section
+                className={`settings-card${focusedTargetKey === settingsTargetKey("automation", "scheduler") ? " settings-targeted" : ""}`}
+                role="region"
+                aria-label="Scheduler settings"
+                tabIndex={-1}
+                data-settings-target={settingsTargetKey("automation", "scheduler")}
+              >
+                <h2>Scheduler</h2>
+                {schedulerStatus && (
+                  <span className="success-note">
+                    Scheduler {schedulerStatus.running ? "running" : "stopped"} · checks every{" "}
+                    {schedulerStatus.pollIntervalSeconds}s
                   </span>
+                )}
+                <label className="toggle-row">
                   <input
+                    checked={schedulerEnabled}
                     type="checkbox"
-                    checked={dockVisible}
                     onChange={async (e) => {
-                      const visible = e.target.checked;
-                      setDockVisible(visible);
-                      await setDockVisibility(visible);
+                      const enabled = e.currentTarget.checked;
+                      setSchedulerEnabled(enabled);
+                      setSchedulerNotice(await actions.toggleScheduler(enabled));
+                      setSchedulerStatus((current) =>
+                        current ? { ...current, running: enabled } : current,
+                      );
                     }}
                   />
+                  Scheduled workflow checks
                 </label>
-                <label>
-                  Global Shortcut
-                  <span className="settings-card-detail">
-                    Opens Raven from anywhere
-                  </span>
-                  <input
-                    type="text"
-                    value={globalShortcut.replace(/CmdOrCtrl/g, "⌘").replace(/\+/g, " ")}
-                    onKeyDown={(e) => {
-                      e.preventDefault();
-                      const parts: string[] = [];
-                      if (e.metaKey) parts.push("CmdOrCtrl");
-                      if (e.shiftKey) parts.push("Shift");
-                      if (e.altKey) parts.push("Alt");
-                      if (e.ctrlKey && !e.metaKey) parts.push("Ctrl");
-                      const key = e.key;
-                      const isModifier = ["Meta", "Shift", "Alt", "Control"].includes(key);
-                      if (!isModifier && parts.length > 0) {
-                        parts.push(key.length === 1 ? key.toUpperCase() : key);
-                        const shortcut = parts.join("+");
-                        setGlobalShortcut(shortcut);
-                        void tauriSetGlobalShortcut(shortcut);
-                      }
-                    }}
-                    readOnly
-                    placeholder="Press keys..."
-                  />
-                </label>
-              </div>
-
-              <div className="settings-card">
-                <h2>Default AI</h2>
-                <p>Which AI provider Raven uses to build workflows.</p>
-                <label>
-                  Active builder
-                  <select
-                    value={builderProfileId}
-                    onChange={(e) => actions.updateBuilderProfile(e.currentTarget.value)}
-                  >
-                    {agentAuthProfiles.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="settings-card">
-                <h2>Generation Settings</h2>
-                {llmProfile && (
-                  <dl>
-                    <dt>Builder</dt>
-                    <dd>{selectedBuilder?.displayName ?? builderProfileId}</dd>
-                    <dt>Provider</dt>
-                    <dd>{llmProfile.providerId}</dd>
-                    <dt>Model</dt>
-                    <dd>{llmProfile.model}</dd>
-                    <dt>Effort</dt>
-                    <dd>{llmProfile.effort}</dd>
-                    <dt>Structured output</dt>
-                    <dd>{llmProfile.supportsStructuredOutputs ? "Enabled" : "Unavailable"}</dd>
-                  </dl>
-                )}
-              </div>
-
-              <div className="settings-card settings-appearance-card" role="region" aria-label="Appearance settings">
-                <div className="settings-card-header">
-                  <h2>Appearance</h2>
-                  <Palette size={18} aria-hidden="true" />
-                </div>
-                <div className="appearance-controls">
-                  <label>
-                    Theme
-                    <select
-                      aria-label="Appearance theme"
-                      value={theme}
-                      onChange={(event) => {
-                        const next = event.currentTarget.value;
-                        if (!isAppearanceTheme(next)) return;
-                        setTheme(next);
-                        persistThemePreferences(next, customAccent);
-                        setThemeNotice("Theme saved locally.");
-                        recordSettingsChange("Appearance theme saved", "system", settingsTargetKey("system", "appearance"));
-                      }}
-                    >
-                      <option value="aurora-dark">Aurora dark</option>
-                      <option value="aurora-light">Aurora light</option>
-                    </select>
-                  </label>
-                  <label>
-                    Accent
-                    <span className="appearance-accent-row">
-                      <input
-                        type="color"
-                        aria-label="Custom accent color"
-                        value={customAccent}
-                        onChange={(event) => {
-                          const next = event.currentTarget.value;
-                          setCustomAccent(next);
-                          applyAccent(next);
-                          persistThemePreferences(theme, next);
-                          setThemeNotice("Accent saved locally.");
-                        }}
-                      />
-                      <input
-                        value={customAccent}
-                        onChange={(event) => {
-                          const next = event.currentTarget.value.trim();
-                          setCustomAccent(next);
-                          if (isHexColor(next)) {
-                            applyAccent(next);
-                            persistThemePreferences(theme, next);
-                            setThemeNotice("Accent saved locally.");
-                          }
-                        }}
-                        aria-label="Custom accent hex"
-                      />
-                    </span>
-                  </label>
-                </div>
-                <div className="appearance-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const preferences = buildThemePreferences(theme, customAccent);
-                      persistThemePreferences(theme, customAccent);
-                      const json = JSON.stringify(preferences, null, 2);
-                      setThemeExportText(json);
-                      downloadThemePreferences(preferences);
-                      setThemeNotice("Theme exported.");
-                    }}
-                  >
-                    <Download size={15} />
-                    Export theme
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const imported = parseThemePreferences(themeImportText);
-                      if (!imported) {
-                        setThemeNotice("Theme import must be valid raven.theme.v1 JSON.");
-                        return;
-                      }
-                      setTheme(imported.theme);
-                      setCustomAccent(imported.accent);
-                      applyAccent(imported.accent);
-                      persistThemePreferences(imported.theme, imported.accent);
-                      setThemeExportText(JSON.stringify(imported, null, 2));
-                      setThemeNotice("Theme imported.");
-                      recordSettingsChange("Appearance theme imported", "system", settingsTargetKey("system", "appearance"));
-                    }}
-                  >
-                    <Upload size={15} />
-                    Import theme
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      clearAccent();
-                      setCustomAccent(DEFAULT_ACCENT);
-                      localStorage.removeItem(THEME_PREFERENCES_STORAGE_KEY);
-                      setThemeNotice("Theme reset locally.");
-                    }}
-                  >
-                    Reset appearance
-                  </button>
-                </div>
-                <label>
-                  Theme import JSON
-                  <textarea
-                    value={themeImportText}
-                    onChange={(event) => setThemeImportText(event.currentTarget.value)}
-                    aria-label="Theme import JSON"
-                    rows={4}
-                  />
-                </label>
-                {themeExportText && (
-                  <label>
-                    Last exported theme JSON
-                    <textarea
-                      value={themeExportText}
-                      aria-label="Last exported theme JSON"
-                      readOnly
-                      rows={4}
-                    />
-                  </label>
-                )}
-                {themeNotice && <span className="success-note">{themeNotice}</span>}
-              </div>
-
-              <div className="settings-card">
-                <h2>About</h2>
-                <dl>
-                  <dt>Version</dt>
-                  <dd>{appVersion}</dd>
-                  <dt>Framework</dt>
-                  <dd>Tauri v2</dd>
-                </dl>
-                <button type="button" onClick={checkForUpdates}>
-                  Check for updates
+                <button type="button" onClick={() => void actions.runDueSchedules()}>
+                  Run due schedules now
                 </button>
-                {updateNotice && <span className="success-note">{updateNotice}</span>}
-              </div>
+                {schedulerNotice && <span className="success-note">{schedulerNotice}</span>}
+                {runNotice && <span className="success-note">{runNotice}</span>}
+
+                <div className="settings-cards">
+                  <article className="settings-card settings-readiness-card">
+                    <h3>Due schedules</h3>
+                    <dl className="settings-compact-dl">
+                      <dt>Scheduled workflows</dt>
+                      <dd>{scheduledWorkflows.length}</dd>
+                      <dt>Next run</dt>
+                      <dd>
+                        {nextScheduledRun
+                          ? `${nextScheduledRun.workflow.definition.name} · ${formatDateTime(nextScheduledRun.nextRun)}`
+                          : "No enabled schedules"}
+                      </dd>
+                      <dt>Check interval</dt>
+                      <dd>
+                        {schedulerStatus
+                          ? `${schedulerStatus.pollIntervalSeconds}s`
+                          : "Scheduler status unavailable"}
+                      </dd>
+                    </dl>
+                  </article>
+
+                  <article className="settings-card settings-readiness-card">
+                    <h3>Retry queue</h3>
+                    <p>
+                      {retryableRuns.length > 0
+                        ? `${retryableRuns.length} run${retryableRuns.length === 1 ? "" : "s"} require retry or setup.`
+                        : "No retryable or blocked runs."}
+                    </p>
+                    {retryableRuns.length > 0 && (
+                      <ul className="source-ref-list">
+                        {retryableRuns.slice(0, 4).map((run) => (
+                          <li key={run.id}>{run.workflowName}: {run.setupAction ?? run.failureReason ?? run.status}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                </div>
+
+                <div>
+                  <h3>Scheduled workflows</h3>
+                  {scheduledWithNextRun.length === 0 ? (
+                    <p className="empty-state">No enabled workflow schedules.</p>
+                  ) : (
+                    <div className="settings-table">
+                      {scheduledWithNextRun.map(({ workflow, nextRun }) => (
+                        <div className="settings-table-row" key={workflow.id}>
+                          <strong>{workflow.definition.name}</strong>
+                          <span>{formatSchedule(workflow.definition.schedule)}</span>
+                          <span>{formatDateTime(nextRun)}</span>
+                          <span>{workflowApprovalLabel(workflow)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Change history */}
+              <section className="settings-history-panel" role="region" aria-label="Settings change history">
+                <h2>Change history</h2>
+                {settingsHistory.length === 0 ? (
+                  <p className="empty-state">No settings changes recorded in this local session.</p>
+                ) : (
+                  <ol>
+                    {settingsHistory.map((entry) => (
+                      <li key={entry.id}>
+                        <strong>{entry.label}</strong>
+                        <span>{new Date(entry.changedAt).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
             </section>
           )}
-
-          <section className="settings-history-panel" role="region" aria-label="Settings change history">
-            <h2>Change history</h2>
-            {settingsHistory.length === 0 ? (
-              <p className="empty-state">No settings changes recorded in this local session.</p>
-            ) : (
-              <ol>
-                {settingsHistory.map((entry) => (
-                  <li key={entry.id}>
-                    <strong>{entry.label}</strong>
-                    <span>{new Date(entry.changedAt).toLocaleString()}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
         </div>
       </div>
     </section>

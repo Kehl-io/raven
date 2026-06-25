@@ -134,10 +134,10 @@ function providerSettingsLink(provider: ProviderHealth | undefined, label: strin
     return { tab: "context", target: { type: "context-source", id: provider.id, label: provider.name } };
   }
   if (provider?.kind === "artifact_destination") {
-    return { tab: "outputs", target: { type: "output", id: provider.id, label: provider.name } };
+    return { tab: "general", target: { type: "output", id: provider.id, label: provider.name } };
   }
   return {
-    tab: "providers",
+    tab: "general",
     target: { type: "provider", id: slugTargetId(provider?.name ?? label), label: provider?.name ?? label },
   };
 }
@@ -282,7 +282,7 @@ export function buildWorkflowBuilderNodes({
               status: authProfile.status,
               recovery: authProfile.summary,
               settingsLink: {
-                tab: "providers",
+                tab: "general",
                 target: { type: "provider", id: authProfile.id, label: authProfile.displayName },
               },
             }];
@@ -294,7 +294,7 @@ export function buildWorkflowBuilderNodes({
           status: "missing",
           recovery: "Configure an AI provider profile before enabling this workflow.",
           settingsLink: {
-            tab: "providers",
+            tab: "general",
             target: { type: "provider", id: slugTargetId(profileRef), label: profileRef },
           },
         }];
@@ -522,7 +522,7 @@ export function buildWorkflowBuilderNodes({
         {
           label: "Artifact destination",
           reason: "Not supported by safe edits",
-          settingsLink: { tab: "outputs" },
+          settingsLink: { tab: "general" },
         },
       ],
     },

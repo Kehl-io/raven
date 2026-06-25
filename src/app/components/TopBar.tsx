@@ -296,7 +296,7 @@ export function TopBar() {
   };
 
   const openProviderSettings = (groupName: string) => {
-    openSettingsTarget("providers", {
+    openSettingsTarget("general", {
       type: "provider",
       id: settingsTargetId(groupName),
       label: groupName,
@@ -305,7 +305,7 @@ export function TopBar() {
   };
 
   const openAutomationSettings = () => {
-    openSettingsTarget("automation", { type: "automation", id: "scheduler", label: "Scheduler" });
+    openSettingsTarget("advanced", { type: "automation", id: "scheduler", label: "Scheduler" });
     setOpenStatus(null);
   };
 
