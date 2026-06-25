@@ -62,6 +62,19 @@ function formatLocalTime(iso: string | null): string {
   }).format(new Date(iso));
 }
 
+function formatScheduleTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (isToday) return `Today ${time}`;
+  if (isTomorrow) return `Tomorrow ${time}`;
+  return date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + ` ${time}`;
+}
+
 function isoDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -259,7 +272,7 @@ function visibleScheduleAction(
       label: "No schedules due",
       disabled: true,
       dueCount: 0,
-      reason: `The next scheduled run is ${nextVisibleEntry.workflowName} at ${nextVisibleEntry.displayRunAt}.`,
+      reason: `The next scheduled run is ${nextVisibleEntry.workflowName} at ${formatScheduleTime(nextVisibleEntry.displayRunAt)}.`,
     };
   }
 

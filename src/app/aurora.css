@@ -2843,6 +2843,23 @@ dd {
   border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--surface-line));
 }
 
+.metric-strip .metric.metric-clickable {
+  cursor: pointer;
+  text-align: inherit;
+  background: inherit;
+  border-radius: var(--radius);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.metric-strip .metric.metric-clickable:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.metric-strip .metric.metric-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .workflow-roster {
   display: grid;
   grid-template-columns: repeat(2, minmax(min(18rem, 100%), 1fr));
@@ -3666,19 +3683,13 @@ dd {
 
 .command-center-ops-row {
   display: grid;
-  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+  grid-template-columns: 1fr;
   gap: var(--space-4);
   align-items: start;
 }
 
 .command-center-ops-section {
   min-width: 0;
-}
-
-@media (max-width: 1180px) {
-  .command-center-ops-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 .usage-panel,
