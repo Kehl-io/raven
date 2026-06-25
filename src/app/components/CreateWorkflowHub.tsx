@@ -837,7 +837,7 @@ export function CreateWorkflowHub() {
   }, [actions, pendingApprovedRun]);
 
   const configureProvider = useCallback(() => {
-    ui.setActiveSettingsTab("providers");
+    ui.setActiveSettingsTab("general");
     ui.setView("settings");
     ui.closeCreateWorkflowHub();
   }, [ui]);

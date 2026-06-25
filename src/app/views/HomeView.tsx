@@ -91,6 +91,19 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+function formatScheduleTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (isToday) return `Today ${time}`;
+  if (isTomorrow) return `Tomorrow ${time}`;
+  return date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + ` ${time}`;
+}
+
 function destinationLabel(destination: string): string {
   return destination.replace(/[_-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -270,6 +283,16 @@ export function HomeView() {
     return { totalCost, totalTokens };
   }, [runs]);
 
+  const last24hMetric = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - 24);
+    const filtered = runs.filter((r) => new Date(r.startedAt) >= cutoff);
+    if (filtered.length === 0) return null;
+    const totalCost = filtered.reduce((sum, r) => sum + (r.totalCostUsd ?? 0), 0);
+    const totalTokens = filtered.reduce((sum, r) => sum + (r.totalTokens ?? 0), 0);
+    return { totalCost, totalTokens };
+  }, [runs]);
+
   const usageRuns = useMemo(() => {
     const cutoff = periodCutoff(costPeriod);
     return cutoff ? runs.filter((r) => new Date(r.startedAt) >= cutoff) : runs;
@@ -289,7 +312,7 @@ export function HomeView() {
   const providerStatusLabel = providerGroups.length > 0
     ? `${readyProviderGroups}/${providerGroups.length} provider groups ready`
     : "Provider readiness unavailable";
-  const providerNeedsAttention = providerGroups.some((group) => !group.isReady);
+  const providerNeedsAttention = readyProviderGroups === 0 && providerGroups.length > 0;
   const activeRun = runStream.activeRunId
     ? runs.find((run) => run.id === runStream.activeRunId)
     : undefined;
@@ -322,6 +345,17 @@ export function HomeView() {
   const failedThisWeek = runsThisWeek.filter((r) => r.status === "failed").length;
 
   const lastRun = latestRuns[0];
+
+  const lastRunMetric = useMemo(() => {
+    const run = latestRuns[0];
+    if (!run) return null;
+    return {
+      cost: run.totalCostUsd ?? null,
+      tokens: run.totalTokens ?? null,
+      name: run.workflowName,
+    };
+  }, [latestRuns]);
+
   const subtitleParts: string[] = [];
   if (enabledCount > 0) subtitleParts.push(`${enabledCount} workflow${enabledCount !== 1 ? "s" : ""} active`);
   if (lastRun) subtitleParts.push(`last run ${formatRelativeTime(lastRun.startedAt)}`);
@@ -368,7 +402,7 @@ export function HomeView() {
         return;
       }
       if (target === "providers") {
-        setActiveSettingsTab("providers");
+        setActiveSettingsTab("general");
         setView("settings");
         return;
       }
@@ -443,7 +477,7 @@ export function HomeView() {
           type="button"
           className={`status-strip-item ${providerNeedsAttention ? "needs-attention is-mobile-critical" : ""}`}
           onClick={() => {
-            setActiveSettingsTab("providers");
+            setActiveSettingsTab("general");
             setView("settings");
           }}
         >
@@ -455,7 +489,7 @@ export function HomeView() {
           type="button"
           className={`status-strip-item ${schedulerStatus?.running ? "" : "needs-attention is-mobile-critical"}`}
           onClick={() => {
-            setActiveSettingsTab("automation");
+            setActiveSettingsTab("advanced");
             setView("settings");
           }}
         >
@@ -569,7 +603,7 @@ export function HomeView() {
         </div>
       )}
 
-      {hasSkippedSetup && (
+      {hasSkippedSetup && !hasAnyProvider && (
         <section className="onboarding-resume-card" aria-label="Onboarding checklist">
           <div>
             <p className="eyebrow">Onboarding skipped</p>
@@ -620,13 +654,33 @@ export function HomeView() {
         <div className="metric">
           <span>Next Run</span>
           <strong>{nextRun ? formatNextRunCountdown(nextRun.time) : "—"}</strong>
-          <span>{nextRun ? nextRun.workflowName : "No scheduled runs"}</span>
+          <span>{nextRun ? `${nextRun.workflowName} · ${formatScheduleTime(nextRun.time.toISOString())}` : "No scheduled runs"}</span>
         </div>
         <div className="metric">
           <span>Cost This Week</span>
           <strong>{formatCurrency(weekCostMetric.totalCost)}</strong>
           <span>{weekCostMetric.totalTokens.toLocaleString()} tokens</span>
         </div>
+        <button
+          type="button"
+          className="metric metric-clickable"
+          onClick={() => openCommandCenterTarget("usage")}
+          aria-label="View usage — last 24 hours"
+        >
+          <span>Last 24h</span>
+          <strong>{last24hMetric ? formatCurrency(last24hMetric.totalCost) : "—"}</strong>
+          <span>{last24hMetric ? `${last24hMetric.totalTokens.toLocaleString()} tokens` : "No runs"}</span>
+        </button>
+        <button
+          type="button"
+          className="metric metric-clickable"
+          onClick={() => openCommandCenterTarget("usage")}
+          aria-label="View usage — last run"
+        >
+          <span>Last Run</span>
+          <strong>{lastRunMetric?.cost != null ? formatCurrency(lastRunMetric.cost) : "—"}</strong>
+          <span>{lastRunMetric ? (lastRunMetric.tokens != null ? `${lastRunMetric.tokens.toLocaleString()} tokens` : lastRunMetric.name) : "No runs"}</span>
+        </button>
       </div>
 
       <div className="workflow-roster">
@@ -791,14 +845,16 @@ export function HomeView() {
             }}
           />
         </div>
-        <div className="command-center-ops-section command-center-usage-section">
-          <UsageCommandPanel
-            ref={usagePanelRef}
-            state={state}
-            isTargeted={commandCenterTarget === "usage"}
-            onOpenWorkflow={(workflowId) => openWorkflow(workflowId, "home", "usage")}
-          />
-        </div>
+        {commandCenterTarget === "usage" && (
+          <div className="command-center-ops-section command-center-usage-section">
+            <UsageCommandPanel
+              ref={usagePanelRef}
+              state={state}
+              isTargeted={true}
+              onOpenWorkflow={(workflowId) => openWorkflow(workflowId, "home", "usage")}
+            />
+          </div>
+        )}
       </div>
 
       <div className="feed-artifacts-split">

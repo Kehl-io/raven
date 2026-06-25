@@ -151,7 +151,7 @@ export function AssistantDrawer({
         };
       case "settings": {
         let settingsPlaceholder = "Need help with settings?";
-        if (activeSettingsTab === "providers") {
+        if (activeSettingsTab === "general") {
           settingsPlaceholder = "Need help connecting a provider?";
         } else if (activeSettingsTab === "context") {
           settingsPlaceholder = "Need help setting up a context source?";
@@ -223,7 +223,7 @@ export function AssistantDrawer({
     }
 
     if (kind === "open-settings") {
-      const tab = isSettingsTab(payload.tab) ? payload.tab : "providers";
+      const tab = isSettingsTab(payload.tab) ? payload.tab : "general";
       openSettingsTarget(tab, parseSettingsTarget(payload.target));
       setAssistantOpen(false);
       return;
@@ -395,12 +395,10 @@ export function AssistantDrawer({
 
 function isSettingsTab(value: unknown): value is Parameters<ReturnType<typeof useUI>["setActiveSettingsTab"]>[0] {
   return (
-    value === "providers" ||
+    value === "general" ||
     value === "context" ||
-    value === "outputs" ||
-    value === "automation" ||
-    value === "extensions" ||
-    value === "system"
+    value === "tools" ||
+    value === "advanced"
   );
 }
 

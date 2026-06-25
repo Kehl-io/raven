@@ -9,7 +9,7 @@ import type {
 
 export type CreateWorkflowPath = "describe" | "template" | "import" | "manual";
 export type WorkflowDetailFocus = "usage" | "run-history" | null;
-export type SettingsTabId = "providers" | "context" | "outputs" | "automation" | "extensions" | "system";
+export type SettingsTabId = "general" | "context" | "tools" | "advanced";
 export type SettingsFocusTarget =
   | { type: "provider"; id: string; label?: string }
   | { type: "context-source"; id: string; label?: string }
@@ -118,29 +118,27 @@ function parseSettingsHash(): {
   target: SettingsFocusTarget | null;
 } {
   if (typeof window === "undefined") {
-    return { view: "home", tab: "providers", target: null };
+    return { view: "home", tab: "general", target: null };
   }
   const parts = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] !== "settings") {
-    return { view: "home", tab: "providers", target: null };
+    return { view: "home", tab: "general", target: null };
   }
-  const tab = isSettingsTabId(parts[1]) ? parts[1] : "providers";
+  const tab = isSettingsTabId(parts[1]) ? parts[1] : "general";
   return { view: "settings", tab, target: settingsTargetFromHash(tab, parts[2]) };
 }
 
 function isSettingsTabId(value: unknown): value is SettingsTabId {
   return (
-    value === "providers" ||
+    value === "general" ||
     value === "context" ||
-    value === "outputs" ||
-    value === "automation" ||
-    value === "extensions" ||
-    value === "system"
+    value === "tools" ||
+    value === "advanced"
   );
 }
 
 function settingsTargetFromHash(tab: SettingsTabId, anchor?: string): SettingsFocusTarget | null {
-  if (!anchor) return tab === "automation" ? { type: "automation", id: "scheduler", label: "Scheduler" } : null;
+  if (!anchor) return tab === "advanced" ? { type: "automation", id: "scheduler", label: "Scheduler" } : null;
   if (tab === "context") {
     const labels: Record<string, string> = {
       github: "GitHub",
@@ -150,16 +148,15 @@ function settingsTargetFromHash(tab: SettingsTabId, anchor?: string): SettingsFo
     };
     return { type: "context-source", id: anchor, label: labels[anchor] ?? anchor };
   }
-  if (tab === "automation" && anchor === "scheduler") {
+  if (tab === "advanced" && anchor === "scheduler") {
     return { type: "automation", id: "scheduler", label: "Scheduler" };
   }
-  if (tab === "providers") return { type: "provider", id: anchor, label: anchor };
-  if (tab === "outputs") return { type: "output", id: anchor, label: anchor };
+  if (tab === "general") return { type: "provider", id: anchor, label: anchor };
   return null;
 }
 
 function hashForSettingsTarget(tab: SettingsTabId, target?: SettingsFocusTarget | null): string {
-  const anchor = target?.id ?? (tab === "automation" ? "scheduler" : "");
+  const anchor = target?.id ?? (tab === "advanced" ? "scheduler" : "");
   return `#settings/${tab}${anchor ? `/${anchor}` : ""}`;
 }
 
@@ -204,7 +201,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   const setActiveSettingsTab = useCallback((tab: SettingsTabId) => {
     setActiveSettingsTabState(tab);
-    const target = tab === "automation" ? { type: "automation", id: "scheduler", label: "Scheduler" } as const : null;
+    const target = tab === "advanced" ? { type: "automation", id: "scheduler", label: "Scheduler" } as const : null;
     setSettingsFocusTarget(target);
     replaceHash(hashForSettingsTarget(tab, target));
   }, []);

@@ -1,6 +1,6 @@
 import type { SettingsFocusTarget } from "../contexts/UIContext";
 
-type SettingsTabId = "providers" | "context" | "outputs" | "automation" | "extensions" | "system";
+type SettingsTabId = "general" | "context" | "tools" | "advanced";
 
 interface SettingsBreadcrumbsProps {
   activeTab: SettingsTabId;
@@ -9,30 +9,28 @@ interface SettingsBreadcrumbsProps {
 }
 
 const tabLabels: Record<SettingsTabId, string> = {
-  providers: "Providers",
-  context: "Context",
-  outputs: "Outputs",
-  automation: "Automation",
-  extensions: "Extensions",
-  system: "System",
+  general: "General",
+  context: "Context Sources",
+  tools: "Tools & Capabilities",
+  advanced: "Advanced",
 };
 
 export function SettingsBreadcrumbs({ activeTab, target, onNavigate }: SettingsBreadcrumbsProps) {
   const targetLabel = target?.label ?? target?.id;
   const segments = targetLabel
     ? [
-        { label: "Settings", tab: "providers" as const, current: false },
+        { label: "Settings", tab: "general" as const, current: false },
         { label: tabLabels[activeTab], tab: activeTab, current: false },
         { label: targetLabel, tab: activeTab, current: true },
       ]
-    : activeTab === "automation"
+    : activeTab === "advanced"
       ? [
-          { label: "Settings", tab: "providers" as const, current: false },
-          { label: "Automation", tab: "automation" as const, current: false },
-          { label: "Scheduler", tab: "automation" as const, current: true },
+          { label: "Settings", tab: "general" as const, current: false },
+          { label: "Advanced", tab: "advanced" as const, current: false },
+          { label: "Scheduler", tab: "advanced" as const, current: true },
         ]
     : [
-        { label: "Settings", tab: "providers" as const, current: false },
+        { label: "Settings", tab: "general" as const, current: false },
         { label: tabLabels[activeTab], tab: activeTab, current: true },
       ];
 

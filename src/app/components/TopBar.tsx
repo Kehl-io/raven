@@ -223,7 +223,6 @@ export function TopBar() {
   const topUsageWorkflow = usageSummary.byWorkflow[0];
   const usageOverBudget =
     usageBudgetThresholdUsd != null && usageSummary.totalCostUsd >= usageBudgetThresholdUsd;
-  const providerIssueCount = unhealthyProviderGroups.length;
   const schedulerIssueCount = (schedulerStatus && !schedulerStatus.running ? 1 : 0) + overdueScheduleEntries.length + attentionScheduleEntries.length;
   const approvalIssueCount = pendingApprovalCount;
   const usageIssueCount = usageOverBudget ? 1 : 0;
@@ -297,7 +296,7 @@ export function TopBar() {
   };
 
   const openProviderSettings = (groupName: string) => {
-    openSettingsTarget("providers", {
+    openSettingsTarget("general", {
       type: "provider",
       id: settingsTargetId(groupName),
       label: groupName,
@@ -306,7 +305,7 @@ export function TopBar() {
   };
 
   const openAutomationSettings = () => {
-    openSettingsTarget("automation", { type: "automation", id: "scheduler", label: "Scheduler" });
+    openSettingsTarget("advanced", { type: "automation", id: "scheduler", label: "Scheduler" });
     setOpenStatus(null);
   };
 
@@ -386,13 +385,13 @@ export function TopBar() {
           {statusVisibility.providers && <TopStatusPopover
             id="providers"
             title="Provider status"
-            buttonLabel={`Provider status: ${readyProviderGroups} of ${providerGroups.length} provider groups ready`}
-            buttonTitle={`${readyProviderGroups}/${providerGroups.length} provider groups ready`}
-            className={unhealthyProviderGroups.length > 0 ? " needs-attention" : ""}
-            icon={unhealthyProviderGroups.length > 0 ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
-            summary={`${readyProviderGroups}/${providerGroups.length} providers`}
-            badgeCount={providerIssueCount}
-            badgeLabel={`Provider issues: ${providerIssueCount}`}
+            buttonLabel={`Provider status: ${readyProviderGroups > 0 ? "Provider ready" : "Provider needed"}`}
+            buttonTitle={readyProviderGroups > 0 ? "Provider ready" : "Provider needed"}
+            className={readyProviderGroups === 0 ? " needs-attention" : ""}
+            icon={readyProviderGroups > 0 ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            summary={readyProviderGroups > 0 ? "Provider ready" : "Provider needed"}
+            badgeCount={readyProviderGroups === 0 ? 1 : 0}
+            badgeLabel={readyProviderGroups === 0 ? "Provider needed" : ""}
             isOpen={openStatus === "providers"}
             onToggle={() => toggleStatus("providers")}
             onClose={() => setOpenStatus(null)}
@@ -427,13 +426,13 @@ export function TopBar() {
             <div className="top-status-actions">
               <button
                 type="button"
-                onClick={() => openSettingsTab("providers")}
+                onClick={() => openSettingsTab("general")}
               >
                 Open provider settings
               </button>
             </div>
           </TopStatusPopover>}
-          {statusVisibility.scheduler && <TopStatusPopover
+          {statusVisibility.scheduler && schedulerStatus?.running !== true && <TopStatusPopover
             id="scheduler"
             title="Scheduler status"
             buttonLabel={`Scheduler status: ${schedulerLabel}`}

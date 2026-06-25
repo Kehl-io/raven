@@ -168,12 +168,12 @@ export function CommandPalette() {
         },
       },
       {
-        id: "settings-providers",
+        id: "settings-general",
         category: "Search Settings",
-        label: "Search Settings: Providers",
+        label: "Search Settings: General",
         icon: <Settings size={14} />,
         action: () => {
-          ui.openSettingsTarget("providers");
+          ui.openSettingsTarget("general");
           close();
         },
       },
@@ -188,32 +188,22 @@ export function CommandPalette() {
         },
       },
       {
-        id: "settings-outputs",
+        id: "settings-tools",
         category: "Search Settings",
-        label: "Search Settings: Outputs",
+        label: "Search Settings: Tools & Capabilities",
         icon: <Settings size={14} />,
         action: () => {
-          ui.openSettingsTarget("outputs");
+          ui.openSettingsTarget("tools");
           close();
         },
       },
       {
-        id: "settings-automation-scheduler",
+        id: "settings-advanced-scheduler",
         category: "Search Settings",
-        label: "Search Settings: Automation / Scheduler",
+        label: "Search Settings: Advanced / Scheduler",
         icon: <Settings size={14} />,
         action: () => {
-          ui.openSettingsTarget("automation", { type: "automation", id: "scheduler", label: "Scheduler" });
-          close();
-        },
-      },
-      {
-        id: "settings-system",
-        category: "Search Settings",
-        label: "Search Settings: System",
-        icon: <Settings size={14} />,
-        action: () => {
-          ui.openSettingsTarget("system");
+          ui.openSettingsTarget("advanced", { type: "automation", id: "scheduler", label: "Scheduler" });
           close();
         },
       },

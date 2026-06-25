@@ -448,6 +448,7 @@ async function renderWorkflows(state = workflowRosterState, installMock = true, 
   await userEvent.click(within(mainNavigation).getByRole("button", { name: "Workflows" }));
   await screen.findByRole("heading", { name: "Workflows" });
   await screen.findAllByText(expectedText);
+  await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
   return view;
 }
 
@@ -676,9 +677,9 @@ describe("Raven app shell", () => {
     await userEvent.click(within(popover).getByRole("button", { name: "Open provider settings" }));
 
     expect(await screen.findByRole("navigation", { name: "Settings breadcrumbs" })).toHaveTextContent(
-      "Providers",
+      "General",
     );
-    expect(screen.getByRole("button", { name: /Providers/i, current: "page" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /General/i, current: "page" })).toBeInTheDocument();
   });
 
   it("keeps urgent status visible and groups low-priority statuses", async () => {
@@ -900,7 +901,7 @@ describe("Raven app shell", () => {
     };
     invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
       if (command === "get_app_state") return scheduledState;
-      if (command === "scheduler_status") return { running: true, pollIntervalSeconds: 60 };
+      if (command === "scheduler_status") return { running: false, pollIntervalSeconds: 60 };
       if (command === "run_scheduled_due_workflows") {
         expect(args).toMatchObject({ workflowIds: ["due-now"] });
         return [
@@ -986,7 +987,7 @@ describe("Raven app shell", () => {
     mockPersistedState({
       ...workflowRosterState,
       agent_auth_profiles: [
-        ...workflowRosterState.agent_auth_profiles,
+        ...workflowRosterState.agent_auth_profiles.map((p) => ({ ...p, status: "needs_config" })),
         {
           id: "anthropic-needs-key",
           display_name: "Anthropic",
@@ -1014,7 +1015,7 @@ describe("Raven app shell", () => {
     render(<App />);
 
     const providerTrigger = await screen.findByRole("button", { name: /provider status/i });
-    expect(within(providerTrigger).getByLabelText("Provider issues: 1")).toHaveTextContent("1");
+    expect(within(providerTrigger).getByLabelText("Provider needed")).toBeInTheDocument();
     expect(screen.getByText(/Last refresh:/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "More system statuses" }));
@@ -1049,7 +1050,7 @@ describe("Raven app shell", () => {
 
     const mainNavigation = await screen.findByRole("navigation", { name: "Main navigation" });
     await userEvent.click(within(mainNavigation).getByRole("button", { name: "Settings" }));
-    await userEvent.click(screen.getByRole("button", { name: /Automation/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Advanced/i }));
 
     const breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
     expect(breadcrumbs).toHaveTextContent("Settings");
@@ -1057,8 +1058,8 @@ describe("Raven app shell", () => {
 
     await userEvent.click(within(breadcrumbs).getByRole("button", { name: "Settings" }));
 
-    expect(screen.getByRole("button", { name: /Providers/i, current: "page" })).toBeInTheDocument();
-    expect(breadcrumbs).toHaveTextContent("Providers");
+    expect(screen.getByRole("button", { name: /General/i, current: "page" })).toBeInTheDocument();
+    expect(breadcrumbs).toHaveTextContent("General");
   });
 
   it("failed artifact destination save does not replace the visible configured path", async () => {
@@ -1097,7 +1098,7 @@ describe("Raven app shell", () => {
 
     const mainNavigation = await screen.findByRole("navigation", { name: "Main navigation" });
     await userEvent.click(within(mainNavigation).getByRole("button", { name: "Settings" }));
-    await userEvent.click(screen.getByRole("button", { name: "Outputs" }));
+    await userEvent.click(screen.getByRole("button", { name: "General" }));
     expect(await screen.findByDisplayValue(oldPath)).toBeInTheDocument();
 
     const markdownCard = screen.getAllByText("Markdown Folder")
@@ -1150,23 +1151,23 @@ describe("Raven app shell", () => {
     await userEvent.click(await screen.findByRole("button", { name: /provider status/i }));
     await userEvent.click(screen.getByRole("button", { name: "Open Anthropic settings" }));
     let breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
-    expect(breadcrumbs).toHaveTextContent("SettingsProvidersAnthropic");
+    expect(breadcrumbs).toHaveTextContent("SettingsGeneralAnthropic");
     expect(await screen.findByRole("region", { name: "Anthropic provider settings" })).toHaveClass("settings-targeted");
 
     await userEvent.click(screen.getByRole("button", { name: "Open Raven assistant" }));
     await userEvent.click(screen.getByRole("button", { name: "Open GitHub context settings" }));
     breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
-    expect(breadcrumbs).toHaveTextContent("SettingsContextGitHub");
+    expect(breadcrumbs).toHaveTextContent("SettingsContext SourcesGitHub");
     expect(await screen.findByRole("region", { name: "GitHub context settings" })).toHaveClass("settings-targeted");
 
     await userEvent.click(screen.getByRole("button", { name: "Open Raven assistant" }));
     await userEvent.click(screen.getByRole("button", { name: "Open scheduler settings" }));
     breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
-    expect(breadcrumbs).toHaveTextContent("SettingsAutomationScheduler");
+    expect(breadcrumbs).toHaveTextContent("SettingsAdvancedScheduler");
     expect(await screen.findByRole("region", { name: "Scheduler settings" })).toHaveClass("settings-targeted");
 
-    await userEvent.click(within(breadcrumbs).getByRole("button", { name: "Automation" }));
-    expect(screen.getByRole("button", { name: /Automation/i, current: "page" })).toBeInTheDocument();
+    await userEvent.click(within(breadcrumbs).getByRole("button", { name: "Advanced" }));
+    expect(screen.getByRole("button", { name: /Advanced/i, current: "page" })).toBeInTheDocument();
   });
 
   it("opens settings subsections from Cmd+K search commands and hash anchors", async () => {
@@ -1176,16 +1177,16 @@ describe("Raven app shell", () => {
     render(<App />);
 
     let breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
-    expect(breadcrumbs).toHaveTextContent("SettingsContextGitHub");
+    expect(breadcrumbs).toHaveTextContent("SettingsContext SourcesGitHub");
     expect(await screen.findByRole("region", { name: "GitHub context settings" })).toHaveClass("settings-targeted");
 
     await userEvent.keyboard("{Meta>}k{/Meta}");
-    await userEvent.type(screen.getByRole("combobox", { name: "Search workflows, artifacts, and actions" }), "settings automation");
+    await userEvent.type(screen.getByRole("combobox", { name: "Search workflows, artifacts, and actions" }), "settings advanced");
     await userEvent.keyboard("{Enter}");
 
     breadcrumbs = await screen.findByRole("navigation", { name: "Settings breadcrumbs" });
-    expect(breadcrumbs).toHaveTextContent("SettingsAutomationScheduler");
-    expect(window.location.hash).toBe("#settings/automation/scheduler");
+    expect(breadcrumbs).toHaveTextContent("SettingsAdvancedScheduler");
+    expect(window.location.hash).toBe("#settings/advanced/scheduler");
   });
 
   it("records recently changed settings history and shows restore defaults unavailable", async () => {
@@ -1212,11 +1213,16 @@ describe("Raven app shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save GitHub context" }));
 
     expect(githubSettings).toHaveTextContent("Recently changed");
+    expect(screen.getByRole("button", { name: "Restore Context defaults unavailable" })).toBeDisabled();
+    expect(localStorage.getItem("raven:settings-change-history")).toContain("GitHub context saved");
+
+    await userEvent.click(
+      within(await screen.findByRole("navigation", { name: "Settings sections" }))
+        .getByRole("button", { name: /Advanced/i }),
+    );
     expect(screen.getByRole("region", { name: "Settings change history" })).toHaveTextContent(
       "GitHub context saved",
     );
-    expect(screen.getByRole("button", { name: "Restore Context defaults unavailable" })).toBeDisabled();
-    expect(localStorage.getItem("raven:settings-change-history")).toContain("GitHub context saved");
   });
 
   it("opens workflow detail in usage focus from a workflow cost bar", async () => {
@@ -1257,6 +1263,9 @@ describe("Raven app shell", () => {
     render(<App />);
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("get_app_state"));
+    await userEvent.click(await screen.findByRole("button", { name: /usage status/i }));
+    const usagePopover = await screen.findByRole("dialog", { name: "Usage status details" });
+    await userEvent.click(within(usagePopover).getByRole("button", { name: "Review usage" }));
     const topWorkflows = await screen.findByRole("list", { name: "Top workflows by cost" });
     await within(topWorkflows).findByText("$3.00");
     await userEvent.click(within(topWorkflows).getByRole("button", { name: "Open Daily Work Journal usage detail" }));
@@ -1304,8 +1313,10 @@ describe("Raven app shell", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Usage status: 1 runs reported usage" });
+    await userEvent.click(await screen.findByRole("button", { name: "Usage status: 1 runs reported usage" }));
+    const usagePopover = await screen.findByRole("dialog", { name: "Usage status details" });
     expect(screen.queryByLabelText("Usage issues: 1")).not.toBeInTheDocument();
+    await userEvent.click(within(usagePopover).getByRole("button", { name: "Review usage" }));
 
     const budgetInput = screen.getByLabelText("Usage budget threshold");
     await userEvent.clear(budgetInput);
@@ -1379,7 +1390,7 @@ describe("Raven app shell", () => {
     render(<App />);
 
     await userEvent.click(screen.getAllByText("Settings")[0]);
-    await userEvent.click(screen.getByRole("button", { name: "System" }));
+    await userEvent.click(screen.getByRole("button", { name: "General" }));
 
     await userEvent.selectOptions(screen.getByLabelText("Appearance theme"), "aurora-light");
     expect(document.documentElement.dataset.theme).toBe("aurora-light");
@@ -1866,6 +1877,7 @@ describe("Raven app shell", () => {
     const mainNavigation = screen.getByRole("navigation", { name: "Main navigation" });
     await userEvent.click(within(mainNavigation).getByRole("button", { name: "Workflows" }));
     await screen.findByRole("heading", { name: "Workflows" });
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Approval" }), "pending-approval");
 
@@ -2571,7 +2583,7 @@ describe("Raven app shell", () => {
 
     await userEvent.click(settingsLinks[0]);
     expect(await screen.findByRole("navigation", { name: "Settings breadcrumbs" })).toHaveTextContent(
-      "SettingsProvidersCodex (local)",
+      "SettingsGeneralCodex (local)",
     );
   });
 
@@ -2926,7 +2938,10 @@ describe("Raven app shell", () => {
   it("fast path marks onboarding skipped and resumes the checklist from Command Center", async () => {
     localStorage.removeItem("raven:setup-complete");
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_app_state") return backendState;
+      if (command === "get_app_state") return {
+        ...backendState,
+        agent_auth_profiles: backendState.agent_auth_profiles.map((p) => ({ ...p, status: "needs_config" })),
+      };
       if (command === "scheduler_status") {
         return { running: false, pollIntervalSeconds: 60 };
       }
@@ -3136,7 +3151,10 @@ describe("Raven app shell", () => {
   it("preserves skipped onboarding state when backend repair completes", async () => {
     localStorage.setItem("raven:setup-skipped", "true");
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_app_state") return backendState;
+      if (command === "get_app_state") return {
+        ...backendState,
+        agent_auth_profiles: backendState.agent_auth_profiles.map((p) => ({ ...p, status: "needs_config" })),
+      };
       if (command === "scheduler_status") {
         return { running: false, pollIntervalSeconds: 60 };
       }
@@ -3176,7 +3194,10 @@ describe("Raven app shell", () => {
       })),
     };
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_app_state") return readyState;
+      if (command === "get_app_state") return {
+        ...readyState,
+        agent_auth_profiles: readyState.agent_auth_profiles.map((p) => ({ ...p, status: "needs_config" })),
+      };
       if (command === "scheduler_status") {
         return { running: false, pollIntervalSeconds: 60 };
       }
@@ -4036,6 +4057,9 @@ describe("Raven app shell", () => {
           projects: [],
         };
       }
+      if (command === "detect_tools") {
+        return [{ id: "cli.nestweaver", displayName: "NestWeaver", status: "available" }];
+      }
       throw new Error(`Unexpected command ${command}`);
     });
 
@@ -4088,6 +4112,7 @@ describe("Raven app shell", () => {
       if (command === "get_onboarding_completed") return true;
       if (command === "complete_onboarding") return null;
       if (command === "detect_nestweaver") return null;
+      if (command === "detect_tools") return [];
       throw new Error(`Unexpected command ${command}`);
     });
 
@@ -4098,7 +4123,6 @@ describe("Raven app shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByRole("heading", { name: "Choose context sources" });
 
-    expect(await screen.findByText("Unavailable on this machine.")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Local git" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "NestWeaver" })).toBeDisabled();
 
@@ -4145,6 +4169,9 @@ describe("Raven app shell", () => {
           db_path: "/redacted/project-db",
           projects: ["raven"],
         };
+      }
+      if (command === "detect_tools") {
+        return [{ id: "cli.nestweaver", displayName: "NestWeaver", status: "available" }];
       }
       throw new Error(`Unexpected command ${command}`);
     });
@@ -4551,6 +4578,7 @@ describe("Raven app shell", () => {
       }
       if (command === "get_onboarding_completed") return true;
       if (command === "complete_onboarding") return null;
+      if (command === "detect_tools") return [{ id: "cli.gh", status: "available", source: "system", display_name: "GitHub CLI", operations: [], annotations: {} }];
       if (command === "install_workflow_template") {
         return {
           id: "daily-work-journal-v1",
@@ -5456,6 +5484,12 @@ describe("Raven app shell", () => {
 
   it("going back from safety step to context preserves context selections", async () => {
     localStorage.removeItem("raven:setup-complete");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_app_state") return backendState;
+      if (command === "scheduler_status") return { running: false, pollIntervalSeconds: 60 };
+      if (command === "detect_tools") return [{ id: "cli.gh", status: "available", source: "system", display_name: "GitHub CLI", operations: [], annotations: {} }];
+      throw new Error(`Unexpected command ${command}`);
+    });
 
     render(<App />);
 
@@ -5680,7 +5714,7 @@ describe("Raven app shell", () => {
   it("shows workflow health scores comparison and deterministic optimization suggestions", async () => {
     await renderWorkflows();
 
-    expect(screen.getByText("Workflow health")).toBeInTheDocument();
+    expect(screen.getByText(/Health:/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Cards" }));
 
     const healthy = screen.getByRole("article", { name: "Healthy OpenAI workflow" });
@@ -5689,12 +5723,8 @@ describe("Raven app shell", () => {
     expect(within(healthy).getByText("90/100")).toBeInTheDocument();
     expect(within(retry).getByText("Retry Sync health score")).toBeInTheDocument();
     expect(within(retry).getByText("60/100")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Workflow optimization suggestions" })).toHaveTextContent(
-      "Review Retry Sync failure handling",
-    );
-    expect(screen.getByRole("region", { name: "Workflow optimization suggestions" })).toHaveTextContent(
-      "Finish Draft Brief setup",
-    );
+    expect(screen.getByText("Review Retry Sync failure handling")).toBeInTheDocument();
+    expect(screen.getByText("Finish Draft Brief setup")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("checkbox", { name: "Select Healthy OpenAI" }));
     await userEvent.click(screen.getByRole("checkbox", { name: "Select Retry Sync" }));
