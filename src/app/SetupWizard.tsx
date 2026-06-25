@@ -464,9 +464,13 @@ export function SetupWizard() {
   const isToolAvailable = (toolId: string) =>
     detectedTools.some((t) => t.id === toolId && t.status === "available");
 
+  const isProviderKnown = (providerId: string) =>
+    state.providers.some((p) => p.id === providerId);
+
   const visibleContextSources = contextSources.filter((source) => {
     if (source.id === "github") return isToolAvailable("cli.gh");
-    if (source.id === "nestweaver") return isToolAvailable("cli.nestweaver");
+    if (source.id === "nestweaver")
+      return isToolAvailable("cli.nestweaver") || isProviderKnown("nestweaver");
     return true;
   });
 

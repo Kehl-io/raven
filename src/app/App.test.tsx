@@ -4124,7 +4124,7 @@ describe("Raven app shell", () => {
     await screen.findByRole("heading", { name: "Choose context sources" });
 
     expect(screen.getByRole("checkbox", { name: "Local git" })).toBeChecked();
-    expect(screen.queryByRole("checkbox", { name: "NestWeaver" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "NestWeaver" })).toBeDisabled();
 
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByRole("heading", { name: "Choose output destination" })).toBeInTheDocument();
